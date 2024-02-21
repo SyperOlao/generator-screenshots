@@ -47,9 +47,6 @@ async def main():
 })
 
     
-      # Delete the element with the specified ID
-    # await page.evaluate('document.getElementById("wl_replies_wrap")?.remove();')
-
     await page.waitForSelector('#wl_post')
       
     await delete_element_by_class_name("wl_replies_block_wrap", page)
