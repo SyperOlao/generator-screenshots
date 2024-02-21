@@ -54,7 +54,6 @@ async def main():
     await delete_element_by_class_name("wl_replies", page)
 
     await delete_element_by_id("wl_replies_wrap", page)
-    await delete_element_by_id("wl_post_actions_wrap", page)
     await delete_element_by_id("page_bottom_banners_root", page)
 
     
