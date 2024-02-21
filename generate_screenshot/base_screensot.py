@@ -1,6 +1,3 @@
-from pyppeteer import launch
-
-
 class GenerateScreenshot:
     def __init__(self):
         self.browser = None

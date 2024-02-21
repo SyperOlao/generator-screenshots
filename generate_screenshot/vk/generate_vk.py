@@ -15,7 +15,7 @@ class GenerateScreenshotVk(GenerateScreenshot):
             url, {"waitUntil": "load", "timeout": 30000}
         ) 
 
-        id = await self._get_existing_element(["#wk_content", "#wide_column"])
+        id = await self._get_existing_element(["#wk_content", "#wide_column", ".article_layer__views"])
         print(id)
 
         if id is None:
