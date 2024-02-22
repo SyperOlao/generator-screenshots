@@ -30,7 +30,7 @@ class GenerateScreenshot:
             await self._delete_element_by_id(id)
 
 
-    async def _check_existing_element_by_id(self, id: str):
+    async def _check_existing_element(self, id: str):
         element = await self.page.querySelector(
             f"{id}",
         )
@@ -39,6 +39,6 @@ class GenerateScreenshot:
 
     async def _get_existing_element(self, ids):
         for id in ids:
-            if await self._check_existing_element_by_id(id):
+            if await self._check_existing_element(id):
                 return id
         return None
