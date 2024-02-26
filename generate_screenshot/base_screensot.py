@@ -1,5 +1,7 @@
 import asyncio
 
+from pyppeteer.errors import NetworkError
+
 from config.config import logger
 import time
 from abc import abstractmethod
@@ -50,6 +52,13 @@ class GenerateScreenshot:
         }}"""
         )
 
+    async def close_old_pages(self):
+        pages = await self.browser.pages()
+        try:
+            for page in pages:
+                await page.close({'runBeforeUnload': True})
+        except NetworkError as e:
+            logger.error(f"NetworkError: {e}")
     async def _delete_by_class_names(self, class_names):
         for class_name in class_names:
             await self._delete_element_by_class_name(class_name)

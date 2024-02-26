@@ -45,7 +45,7 @@ async def main_vk():
     vk = GenerateScreenshotVk()
     await vk.browser_open()
     try:
-        await vk.login_vk(config_env['VK_LOGIN'], config_env['VK_PASSWORD'])
+      #  await vk.login_vk(config_env['VK_LOGIN'], config_env['VK_PASSWORD'])
         await vk.generate_screen_shots(urls_vk, "screenshots/vk")
     except NetworkError as e:
         logger.error(f"NetworkError: {e}")

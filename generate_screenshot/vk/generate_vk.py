@@ -33,9 +33,8 @@ class GenerateScreenshotVk(GenerateScreenshot):
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
         if self.browser is None:
             await self.browser_open()
-        pages = await self.browser.pages()
-        for page in pages:
-            await page.close({'runBeforeUnload': True})
+        await self.close_old_pages()
+
         self.page = await self.browser.newPage()
         await self.page.goto(url, {"waitUntil": "load", "timeout": 22000, "networkidle0": True})
 
