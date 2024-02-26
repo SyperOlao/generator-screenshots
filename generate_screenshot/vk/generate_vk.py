@@ -9,6 +9,8 @@ class GenerateScreenshotVk(GenerateScreenshot):
     padding = 24
 
     async def login_vk(self, email, password):
+        if self.browser is None:
+            await self.browser_open()
         try:
             page = await self.browser.newPage()
             await page.goto('https://vk.com/')
@@ -29,11 +31,13 @@ class GenerateScreenshotVk(GenerateScreenshot):
             await self.browser_close()
 
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
+        if self.browser is None:
+            await self.browser_open()
         pages = await self.browser.pages()
         for page in pages:
             await page.close({'runBeforeUnload': True})
         self.page = await self.browser.newPage()
-        await self.page.goto(url, {"waitUntil": "load", "timeout": 20000, "networkidle0": True})
+        await self.page.goto(url, {"waitUntil": "load", "timeout": 22000, "networkidle0": True})
 
         id = await self._get_existing_element(
             ["#wk_content", "#wide_column", ".article_layer__views"]

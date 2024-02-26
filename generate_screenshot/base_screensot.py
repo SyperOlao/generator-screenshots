@@ -1,3 +1,5 @@
+import asyncio
+
 from config.config import logger
 import time
 from abc import abstractmethod
@@ -22,6 +24,7 @@ class GenerateScreenshot:
         pass
 
     async def generate_screen_shots(self, urls: list[str], screen_shot_path: str):
+
         for url in urls:
             # self.browser.on('disconnected', lambda: asyncio.get_event_loop().run_until_complete(self.browser_open()))
             start_time = time.time()
