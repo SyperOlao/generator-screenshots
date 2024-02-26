@@ -1,8 +1,11 @@
 import asyncio
+
+from pyppeteer.errors import NetworkError
+
 from generate_screenshot.ok.generate_ok import GenerateScreenshotOk
 from generate_screenshot.telegram.generate_tg import GenerateScreenshotTg
 from generate_screenshot.vk.generate_vk import GenerateScreenshotVk
-import time
+from config.config import config_env, logger
 
 urls_vk = [
     "https://vk.com/public222510135?w=wall-222510135_41",
@@ -26,48 +29,37 @@ urls_tg = [
 ]
 
 urls_ok = [
+    "https://ok.ru/group/62848965345443/topic/155617158681507",
+    "https://ok.ru/group/70000001070863/topic/156976990130191",
+    "https://ok.ru/group/70000002276393/topic/157180683767081",
+    "https://ok.ru/group/70000000716428/topic/157205056791948",
+    "https://ok.ru/group/70000001209590/topic/157095483144438",
+    "https://ok.ru/group/70000001125216/topic/155673607039072",
+    "https://ok.ru/group/70000001155735/topic/156193421513623",
     "https://ok.ru/group/70000004708458/topic/156795335883626",
-    # "https://telegram.me/lenskiy_vestni/29702",
+    "https://telegram.me/lenskiy_vestni/29702",
 ]
 
 
 async def main_vk():
     vk = GenerateScreenshotVk()
-    for url in urls_vk:
-        start_time = time.time()
-        name = url.split("/")[-1]
-        try:
-            await vk.generate_screen_shot(url, f"screenshots/vk/{name}.png")
-        except Exception as e:
-            print(f"Screenshot {name} does not exists, {e}")
-        end_time = time.time()
-        print(f"Время выполнения: {end_time - start_time} секунд для {name}")
+    await vk.browser_open()
+    try:
+        await vk.login_vk(config_env['VK_LOGIN'], config_env['VK_PASSWORD'])
+        await vk.generate_screen_shots(urls_vk, "screenshots/vk")
+    except NetworkError as e:
+        logger.error(f"NetworkError: {e}")
+    await vk.browser_close()
 
 
 async def main_tg():
     tg = GenerateScreenshotTg()
-    for url in urls_tg:
-        start_time = time.time()
-        name = url.split("/")[-1]
-        try:
-            await tg.generate_screen_shot(url, f"screenshots/tg/{name}.png")
-        except Exception as e:
-            print(f"Screenshot {name} does not exists, {e}")
-        end_time = time.time()
-        print(f"Время выполнения: {end_time - start_time} секунд для {name}")
+    await tg.generate_screen_shots(urls_tg, f"screenshots/tg")
 
 
 async def main_ok():
     ok = GenerateScreenshotOk()
-    for url in urls_ok:
-        start_time = time.time()
-        name = url.split("/")[-1]
-        try:
-            await ok.generate_screen_shot(url, f"screenshots/ok/{name}.png")
-        except Exception as e:
-            print(f"Screenshot {name} does not exists, {e}")
-        end_time = time.time()
-        print(f"Время выполнения: {end_time - start_time} секунд для {name}")
+    await ok.generate_screen_shots(urls_tg, f"screenshots/ok")
 
 
-asyncio.run(main_ok())
+asyncio.run(main_vk())

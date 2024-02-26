@@ -1,14 +1,13 @@
 from time import sleep
-from pyppeteer import launch
 from generate_screenshot.base_screensot import GenerateScreenshot
 import asyncio
+from config.config import logger
 
 
 class GenerateScreenshotTg(GenerateScreenshot):
     padding = 24
 
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
-        self.browser = await launch()
         self.page = await self.browser.newPage()
 
         await self.page.goto(url, {"waitUntil": "load", "timeout": 30000})
@@ -20,7 +19,7 @@ class GenerateScreenshotTg(GenerateScreenshot):
                 "#widget",
             ]
         )
-        print(id)
+        logger.info(id)
 
         if id is None:
             await self.browser.close()
@@ -49,7 +48,7 @@ class GenerateScreenshotTg(GenerateScreenshot):
         )
 
         bounding_box = await element.boundingBox()
-        print(bounding_box)
+        logger.info(bounding_box)
 
         clip_for_screen_shot = await self._post_is_tg_content(bounding_box)
 
