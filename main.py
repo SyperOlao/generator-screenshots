@@ -7,6 +7,36 @@ from generate_screenshot.telegram.generate_tg import GenerateScreenshotTg
 from generate_screenshot.vk.generate_vk import GenerateScreenshotVk
 from config.config import config_env, logger
 
+urls_vk_2 = [
+    # "http://vk.com/wall-57288440_4675150",
+    "http://vk.com/wall-57288440_4676035",
+    # "http://vk.com/wall-61067996_1799536",
+    # "http://vk.com/wall-151168449_426502",
+    # "http://vk.com/wall-71138052_14043",
+    # "http://vk.com/wall-144865761_78152",
+    # "http://vk.com/wall-144865761_77700",
+    # "http://vk.com/wall-158810690_36241",
+    # "http://vk.com/wall-178517743_19218",
+    # "http://vk.com/wall-2264907_966",
+    # "http://vk.com/wall-178517743_19307",
+    "http://vk.com/wall-158810690_35849",
+    # "http://vk.com/wall-185808385_1114025",
+    # "http://vk.com/wall-170916587_160232",
+    # "http://vk.com/wall-100098188_415599",
+    # "http://vk.com/wall678932830_60695",
+    # "http://vk.com/wall678932830_60796",
+    "http://vk.com/wall625204288_5398",
+    # "http://vk.com/wall-211635463_959",
+    # "http://vk.com/wall-2264907_1001",
+    # "http://vk.com/wall-186255553_6774",
+    # "http://vk.com/wall-6685947_2826",
+    # "http://vk.com/wall-154371296_7879",
+    # "http://vk.com/wall-4734673_4767",
+    # "http://vk.com/wall-193815220_831",
+    # "http://vk.com/wall-208865227_2160",
+    "http://vk.com/wall-161599180_1488",
+]
+
 urls_vk = [
     "https://vk.com/public222510135?w=wall-222510135_41",
     "https://vk.com/styd.pozor?w=wall-71729358_13128057",
@@ -45,11 +75,11 @@ async def main_vk():
     vk = GenerateScreenshotVk()
     await vk.browser_open()
     try:
-      #  await vk.login_vk(config_env['VK_LOGIN'], config_env['VK_PASSWORD'])
-        await vk.generate_screen_shots(urls_vk, "screenshots/vk")
+        await vk.login_vk(config_env['VK_LOGIN'], config_env['VK_PASSWORD'])
+        await vk.generate_screen_shots(urls_vk_2, "screenshots/vk")
     except NetworkError as e:
         logger.error(f"NetworkError: {e}")
-    await vk.browser_close()
+    # await vk.browser_close()
 
 
 async def main_tg():

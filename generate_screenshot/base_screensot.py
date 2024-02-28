@@ -18,21 +18,22 @@ class GenerateScreenshot:
         await self.browser.close()
 
     async def browser_open(self):
-        self.browser = await launch(headless=True, args=['--no-sandbox'])
-        # self.browser = await launch(headless=False)
+        # self.browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
+        self.browser = await launch(headless=False)
 
     @abstractmethod
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
         pass
 
     async def generate_screen_shots(self, urls: list[str], screen_shot_path: str):
-
+        self.page = await self.browser.newPage()
         for url in urls:
             # self.browser.on('disconnected', lambda: asyncio.get_event_loop().run_until_complete(self.browser_open()))
             start_time = time.time()
             name = url.split("/")[-1]
             try:
                 await self.generate_screen_shot(url, f"{screen_shot_path}/{name}.png")
+                time.sleep(1)
             except Exception as e:
                 logger.warn(f"Screenshot {name} does not exists, {e}")
             end_time = time.time()

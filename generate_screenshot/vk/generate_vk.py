@@ -13,11 +13,11 @@ class GenerateScreenshotVk(GenerateScreenshot):
             await self.browser_open()
         try:
             page = await self.browser.newPage()
-            await page.goto('https://vk.com/')
+            await page.goto("https://vk.com/")
 
-            await page.click('#index_email')
+            await page.click("#index_email")
 
-            await page.type('#index_email', email)
+            await page.type("#index_email", email)
             await page.click('button[type="submit"]')
             sleep(1)
             name_password = '[name="password"]'
@@ -33,11 +33,12 @@ class GenerateScreenshotVk(GenerateScreenshot):
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
         if self.browser is None:
             await self.browser_open()
-        await self.close_old_pages()
-
+        # await self.close_old_pages()
         self.page = await self.browser.newPage()
-        await self.page.goto(url, {"waitUntil": "load", "timeout": 22000, "networkidle0": True})
-
+        await self.page.goto(
+            url, waitUntil=["domcontentloaded", "networkidle2"]
+        )
+        sleep(1)
         id = await self._get_existing_element(
             ["#wk_content", "#wide_column", ".article_layer__views"]
         )
@@ -59,7 +60,7 @@ class GenerateScreenshotVk(GenerateScreenshot):
                 "wl_replies",
                 "replies",
                 "post_replies_header",
-                "wl_replies_block_wrap"
+                "wl_replies_block_wrap",
             ]
         )
 
@@ -83,7 +84,9 @@ class GenerateScreenshotVk(GenerateScreenshot):
             clip_for_screen_shot = await self._post_is_wall(bounding_box)
 
         sleep(1)
-        await self.page.screenshot({"path": screen_shot_path, "clip": clip_for_screen_shot})
+        await self.page.screenshot(
+            {"path": screen_shot_path, "clip": clip_for_screen_shot}
+        )
 
     async def _post_is_wk_content(self, bounding_box):
         clip = {
@@ -102,10 +105,10 @@ class GenerateScreenshotVk(GenerateScreenshot):
     async def _post_is_wall(self, bounding_box):
         clip = {
             "width": 1280,
-            "height": int(bounding_box["height"] + self.padding),
+            "height": int(bounding_box["height"]) + self.padding,
         }
         await self.page.setViewport(clip)
-        side_bar = await self._get_existing_element(["#side_bar"])
+        side_bar = await self._get_existing_element(["#page_body"])
         x = int(bounding_box["x"])
 
         if side_bar is not None:
@@ -113,10 +116,10 @@ class GenerateScreenshotVk(GenerateScreenshot):
                 side_bar,
             )
             side_bar_bounding_box = await side_bar_element.boundingBox()
-            x += int(side_bar_bounding_box["width"])
+            x = int(side_bar_bounding_box["x"]) 
         return {
             "x": x,
-            "y": int(bounding_box["y"]),
+            "y": int(bounding_box["y"]) + self.padding,
             "width": int(bounding_box["width"]),
-            "height": int(bounding_box["height"]),
+            "height": int(bounding_box["height"]) - self.padding * 2,
         }
