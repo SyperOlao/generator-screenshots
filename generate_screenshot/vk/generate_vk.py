@@ -7,7 +7,15 @@ from pyppeteer.errors import NetworkError
 
 class GenerateScreenshotVk(GenerateScreenshot):
     padding = 24
+    
+    async def _retry(self, url, response):
+        if 300 <= response.status < 400:
+            logger.info("retry", url)
+            await self.close_page()
+            sleep(3)
+            await self.page.goto(url, waitUntil=["domcontentloaded", "networkidle2"])
 
+    
     async def login_vk(self, email, password):
         if self.browser is None:
             await self.browser_open()
@@ -33,11 +41,12 @@ class GenerateScreenshotVk(GenerateScreenshot):
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
         if self.browser is None:
             await self.browser_open()
-        # await self.close_old_pages()
+
         self.page = await self.browser.newPage()
-        await self.page.goto(
-            url, waitUntil=["domcontentloaded", "networkidle2"]
-        )
+        response = await self.page.goto(url, waitUntil=["domcontentloaded", "networkidle2"])
+        
+        await self._retry(url, response)
+
         sleep(1)
         id = await self._get_existing_element(
             ["#wk_content", "#wide_column", ".article_layer__views"]
@@ -45,11 +54,13 @@ class GenerateScreenshotVk(GenerateScreenshot):
         print(id)
 
         if id is None:
+            await self.close_page()
             raise ValueError(f"Id is not exists")
 
         try:
             await self.page.waitForSelector(id)
         except TimeoutError:
+            await self.close_page()
             raise ValueError(f"Timeout while waiting for '{id}'")
 
         await self._delete_by_class_names(
@@ -83,10 +94,12 @@ class GenerateScreenshotVk(GenerateScreenshot):
         if id == "#wide_column":
             clip_for_screen_shot = await self._post_is_wall(bounding_box)
 
-        sleep(1)
+        sleep(1.2)
         await self.page.screenshot(
             {"path": screen_shot_path, "clip": clip_for_screen_shot}
         )
+
+        await self.close_page()
 
     async def _post_is_wk_content(self, bounding_box):
         clip = {
@@ -116,7 +129,7 @@ class GenerateScreenshotVk(GenerateScreenshot):
                 side_bar,
             )
             side_bar_bounding_box = await side_bar_element.boundingBox()
-            x = int(side_bar_bounding_box["x"]) 
+            x = int(side_bar_bounding_box["x"])
         return {
             "x": x,
             "y": int(bounding_box["y"]) + self.padding,

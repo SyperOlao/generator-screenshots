@@ -1,5 +1,3 @@
-import asyncio
-
 from pyppeteer.errors import NetworkError
 
 from config.config import logger
@@ -18,9 +16,14 @@ class GenerateScreenshot:
         await self.browser.close()
 
     async def browser_open(self):
-        # self.browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-        self.browser = await launch(headless=False)
-
+        self.browser = await launch(
+            headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"]
+        )
+        # self.browser = await launch(headless=False)
+    async def close_page(self):
+        await self.page.waitForNavigation({'timeout': 300})
+        await self.page.close()
+        
     @abstractmethod
     async def generate_screen_shot(self, url: str, screen_shot_path: str):
         pass
@@ -33,7 +36,7 @@ class GenerateScreenshot:
             name = url.split("/")[-1]
             try:
                 await self.generate_screen_shot(url, f"{screen_shot_path}/{name}.png")
-                time.sleep(1)
+                # time.sleep(1)
             except Exception as e:
                 logger.warn(f"Screenshot {name} does not exists, {e}")
             end_time = time.time()
@@ -57,9 +60,10 @@ class GenerateScreenshot:
         pages = await self.browser.pages()
         try:
             for page in pages:
-                await page.close({'runBeforeUnload': True})
+                await page.close({"runBeforeUnload": True})
         except NetworkError as e:
             logger.error(f"NetworkError: {e}")
+
     async def _delete_by_class_names(self, class_names):
         for class_name in class_names:
             await self._delete_element_by_class_name(class_name)
