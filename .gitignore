@@ -1,4 +1,9 @@
 /.DS_Store
 /.venv
+/.idea
+
+.env
 
 /screenshots
+
+**/__pycache__/
