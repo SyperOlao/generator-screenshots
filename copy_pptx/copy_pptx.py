@@ -45,18 +45,9 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
                 if file.startswith(f"slide{slide_num}"):
                     target_zip.write(os.path.join(notes_path, file), f"ppt/notesSlides/{file}")
 
-            # Добавляем файлы отношений для слайдов, изображений, видео и т.д.
-            for file in source_zip.namelist():
-                if file.startswith(f"ppt/slides/_rels/slide{slide_num}.rels") or \
-                   file.startswith(f"ppt/media/") or \
-                   file.startswith(f"ppt/notesSlides/") or \
-                   file.startswith(f"ppt/embeddings/") or \
-                   file.startswith(f"ppt/embeddings/_rels/"):
-                    target_zip.write(os.path.join(source_folder, file), file)
-
         # Добавляем общие файлы и структуры, необходимые для работы презентации
         for file in source_zip.namelist():
             if file.startswith("ppt/") and file != "ppt/slides/_rels":
                 target_zip.write(os.path.join(source_folder, file), file)
 
-    shutil.rmtree(source_folder)
+    #shutil.rmtree(source_folder)
