@@ -61,11 +61,6 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
                     and not file.startswith("ppt/slideLayouts"):
                 target_zip.write(os.path.join(source_folder, file), file)
 
-        # # Добавляем общие файлы и структуры, необходимые для работы презентации
-        # for file in source_zip.namelist():
-        #     if file.startswith("ppt/"):
-        #         target_zip.write(os.path.join(source_folder, file), file)
-
     # shutil.rmtree(source_folder)
 
     # for file in source_zip.namelist():
@@ -74,28 +69,6 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
     #             and not file.startswith("ppt/slides") \
     #             and not file.startswith("ppt/slideLayouts"):
     #         target_zip.write(os.path.join(source_folder, file), file)
-
-
-def working_with_xml_like_string(source_folder, slides_to_copy):
-    xml_file_path = f"{source_folder}/ppt/presentation.xml"
-    tree = ET.parse(xml_file_path)
-    root = tree.getroot()
-    res_str = str(ET.tostring(root)).split('\n')
-    for i in res_str:
-        print(i)
-    # with open(xml_file_path, 'r', encoding='utf-8') as file:
-    #     # Read the contents of the file
-    #     xml_content = file.read()
-    #     pattern = r'<(\d+):sldIdLst>((?:.|\n)*?)</(\d+):sldIdLst>'
-    #
-    #     # Find all matches of the pattern in the string
-    #     matches = re.findall(pattern, xml_content, re.DOTALL)
-    #
-    #     # Print the matches
-    #     for match in matches:
-    #         print(f"Matched tag: {match[0]}:sldIdLst")
-    #         print(f"Content between tags:\n{match[1]}\n")
-    #     print(f"Found {len(matches)} occurrences of 'sldId':")
 
 
 def working_with_xml(source_folder, slides_to_copy):
@@ -117,30 +90,62 @@ def working_with_xml(source_folder, slides_to_copy):
         node for _, node in ET.iterparse(StringIO(str(ET.tostring(root), encoding='utf-8')), events=['start-ns'])])
     pprint(my_namespaces)
     elements = root2.xpath('//ns0:sldIdLst', namespaces=my_namespaces)
-    elems = root2.xpath('.//sldId', namespaces=my_namespaces)
-    for elem in elems:
-        print("ss", elem)
-    for elem in elements:
-        print(elem)
-    elems = root.findall('.//sldId', namespaces=my_namespaces)
-    # Нахождение элемента для удаления по атрибуту r:id
+    elems = root2.xpath('//ns0:sldId', namespaces=my_namespaces)
     to_remove = []
-
-    for sldId in elems:
-        r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+    for elem in elems:
+        r_id = elem.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
         r_num = int(r_id.replace('rId', ''))
         if r_num not in slides_to_copy:
-            to_remove.append(sldId)
+            to_remove.append(elem)
 
     for sldId in to_remove:
-        print(sldId)
-        elems.remove(sldId)
-        root.remove(sldId)
+        parent = sldId.getparent()
+        if parent is not None:
+            parent.remove(sldId)
+
+    # for elem in elements:
+    #     print(elem)
+    # elems = root.findall('.//sldId', namespaces=my_namespaces)
+    # # Нахождение элемента для удаления по атрибуту r:id
+    # to_remove = []
+    #
+    # for sldId in elems:
+    #     r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+    #     r_num = int(r_id.replace('rId', ''))
+    #     if r_num not in slides_to_copy:
+    #         to_remove.append(sldId)
+
+    # for sldId in to_remove:
+    #     parent = sldId.getparent()
+    #     elems.remove(sldId)
+    #     root.remove(sldId)
 
     # Сохранение обновлённого XML-документа
 
-    tree.write(f"{source_folder}/ppt/presentation2.xml")
-    tree.write(root_pptx_xml)
+    tree2.write(f"{source_folder}/ppt/presentation2.xml", pretty_print=True, xml_declaration=True, encoding='utf-8')
+    tree2.write(root_pptx_xml)
+
+
+def copy_solely_necessary_files(source_zip, target_zip, source_folder):
+    for file in source_zip.namelist():
+        if file.startswith("ppt/") \
+                and not file.startswith("ppt/notesSlides") \
+                and not file.startswith("ppt/slides") \
+                and not file.startswith("ppt/slideLayouts"):
+            target_zip.write(os.path.join(source_folder, file), file)
+
+
+def copy_all_files(source_zip, target_zip, source_folder):
+    """
+    Adding common files for pptx from source_zip pptx
+    :param source_zip:
+    :param target_zip:
+    :param source_folder: - Place where pptx temp extracted folder is located
+    :return:
+    """
+    for file in source_zip.namelist():
+        if file.startswith("ppt/"):
+            target_zip.write(os.path.join(source_folder, file), file)
 
 
 copy_pptx()
