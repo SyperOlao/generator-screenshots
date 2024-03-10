@@ -93,6 +93,13 @@ def working_with_xml(source_folder, slides_to_copy):
 
 
 def copy_solely_necessary_files(source_zip, target_zip, source_folder):
+    """
+    Adding addition files for pptx from source_zip pptx except some unnecessary files
+    :param source_zip: source pptx opened like zip
+    :param target_zip: target pptx opened like zip
+    :param source_folder: place where pptx temp extracted folder is located
+    :return:
+    """
     for file in source_zip.namelist():
         if file.startswith("ppt/") \
                 and not file.startswith("ppt/notesSlides") \
@@ -104,9 +111,9 @@ def copy_solely_necessary_files(source_zip, target_zip, source_folder):
 def copy_all_files(source_zip, target_zip, source_folder):
     """
     Adding common files for pptx from source_zip pptx
-    :param source_zip:
-    :param target_zip:
-    :param source_folder: - Place where pptx temp extracted folder is located
+    :param source_zip: source pptx opened like zip
+    :param target_zip: target pptx opened like zip
+    :param source_folder: - place where pptx temp extracted folder is located
     :return:
     """
     for file in source_zip.namelist():
