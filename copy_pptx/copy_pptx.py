@@ -1,4 +1,3 @@
-import re
 from io import StringIO
 
 from pptx import Presentation
@@ -71,25 +70,38 @@ def working_with_xml(source_folder, slides_to_copy):
     tree = etree.parse(root_pptx_xml)
 
     root = tree.getroot()
-    temp_list = [x + 2 for x in slides_to_copy]
-    my_namespaces = dict([
-        node for _, node in ET.iterparse(StringIO(str(ET.tostring(root), encoding='utf-8')), events=['start-ns'])])
-    pprint(my_namespaces)
-    sld_id_lst = root.xpath('//ns0:sldIdLst', namespaces=my_namespaces)
+    slides_to_copy_with_step = [x + 2 for x in slides_to_copy]
+    my_namespaces = get_name_spaces(root)
+
+    sld_id_lst = root.xpath('//ns0:sldIdLst', namespaces=my_namespaces)[0]
+    pprint(sld_id_lst)
     sld_ids = root.xpath('//ns0:sldId', namespaces=my_namespaces)
-    to_remove = []
+
+    res_pptx = dict()
+
     for sldId in sld_ids:
         r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
         r_num = int(r_id.replace('rId', ''))
-        if r_num not in temp_list:
-            to_remove.append(sldId)
-
-    for sldId in to_remove:
+        if r_num in slides_to_copy_with_step:
+            res_pptx[r_num] = sldId
+    
+    for sldId in sld_ids:
         parent = sldId.getparent()
         if parent is not None:
             parent.remove(sldId)
 
+    for id in slides_to_copy_with_step:
+        elem = res_pptx[id]
+
+        if sld_id_lst is not None:
+            sld_id_lst.append(elem)
+    
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def get_name_spaces(root):
+    return dict([
+        node for _, node in ET.iterparse(StringIO(str(ET.tostring(root), encoding='utf-8')), events=['start-ns'])])
 
 
 def copy_solely_necessary_files(source_zip, target_zip, source_folder):
