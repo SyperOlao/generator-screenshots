@@ -8,6 +8,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 import os
 import glob
+import re
 from pprint import pprint
 from lxml import etree
 import shutil
@@ -63,7 +64,10 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
 
 
 def working_with_xml(source_folder, slides_to_copy):
-    change_root_pptx_xml(source_folder, slides_to_copy)
+    root_pptx_xml = f"{source_folder}/ppt/presentation.xml"
+    root_pptx_xml_rels = f"{source_folder}/ppt/_rels/presentation.xml.rels"
+    change_root_pptx_xml(root_pptx_xml, slides_to_copy)
+    change_root_pptx_xml_rels(root_pptx_xml_rels, slides_to_copy)
     i = 0
     slides_path = f"{source_folder}/ppt/slides"
     temp_slides_path = f"{source_folder}/ppt/slides/temp"
@@ -99,6 +103,8 @@ def move_slides(source_folder, destination_folder):
             if os.path.isfile(file_path):
                 shutil.move(file_path, destination_folder)
 
+        shutil.rmtree(source_folder)
+
 
 def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_new):
     slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml"
@@ -108,6 +114,7 @@ def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_ne
     slide_id = root.find('.//a:t', namespaces=namespaces)
     if slide_id is not None:
         slide_id.text = str(slide_num_new)
+
     # blip_element = root.find('.//a:blip', namespaces=namespaces)
     # r = "{" + namespaces['r'] + "}"
     #
@@ -131,9 +138,46 @@ def change_rels_file(slides_path, temp_slides_path, slide_num_old, slide_num_new
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
-def change_root_pptx_xml(source_folder, slides_to_copy):
-    root_pptx_xml = f"{source_folder}/ppt/presentation.xml"
+def extract_slide_numbers(text):
+    # Регулярное выражение для поиска строк, начинающихся на 'slides/slide', за которыми следуют цифры
 
+    pattern = r'slides/slide(\d+)\.xml'
+
+    matches = re.findall(pattern, text)
+    slide_numbers = [int(match) for match in matches]
+
+    return slide_numbers
+
+
+def change_root_pptx_xml_rels(root_pptx_xml, slides_to_copy):
+    tree = etree.parse(root_pptx_xml)
+    root = tree.getroot()
+
+    # TODO:: Add step by master slides
+    slides_to_copy_with_step = [x + 2 for x in slides_to_copy]
+    namespaces = get_name_spaces_by_filepath(root_pptx_xml)
+    res_pptx = dict()
+
+    # Нахождение элемента <Relationship> с Id="rId14"
+    relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
+    for rel in relationship_elements:
+        r_id = rel.get('Id')
+        print(extract_slide_numbers(rel.get('Target')))
+        r_num = 3
+
+        if r_num not in slides_to_copy_with_step:
+            print(r_num)
+            res_pptx[r_num] = rel
+
+    for sldId in relationship_elements[len(slides_to_copy)::]:
+        parent = sldId.getparent()
+        if parent is not None:
+            parent.remove(sldId)
+
+    tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def change_root_pptx_xml(root_pptx_xml, slides_to_copy):
     tree = etree.parse(root_pptx_xml)
     root = tree.getroot()
 
@@ -141,16 +185,15 @@ def change_root_pptx_xml(source_folder, slides_to_copy):
     slides_to_copy_with_step = [x + 2 for x in slides_to_copy]
     namespaces = get_name_spaces(root)
 
-    sld_id_lst = root.xpath('//ns0:sldIdLst', namespaces=namespaces)[0]
+    # sld_id_lst = root.xpath('//ns0:sldIdLst', namespaces=namespaces)[0]
     sld_ids = root.xpath('//ns0:sldId', namespaces=namespaces)
 
-    res_pptx = dict()
-
-    for sldId in sld_ids:
-        r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
-        r_num = int(r_id.replace('rId', ''))
-        if r_num in slides_to_copy_with_step:
-            res_pptx[r_num] = sldId
+    #
+    # for sldId in sld_ids:
+    #     r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+    #     r_num = int(r_id.replace('rId', ''))
+    #     if r_num in slides_to_copy_with_step:
+    #         res_pptx[r_num] = sldId
 
     for sldId in sld_ids[len(slides_to_copy)::]:
         parent = sldId.getparent()
@@ -158,8 +201,6 @@ def change_root_pptx_xml(source_folder, slides_to_copy):
             parent.remove(sldId)
 
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
-
-    return res_pptx
 
 
 def get_name_spaces(root):
