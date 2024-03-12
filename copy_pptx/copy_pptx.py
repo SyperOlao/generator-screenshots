@@ -25,7 +25,7 @@ def copy_pptx():
     path_to_source = f"{script_location}/template.pptx"
     source_presentation = Presentation(path_to_source)
 
-    copy_slides(path_to_source, path_to_new, [1, 2, 4, 7, 27, 21])
+    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
     # new_presentation.save(path_to_new)
 
 
@@ -56,9 +56,9 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
                 if file == f"notesSlide{slide_num}.xml":
                     target_zip.write(os.path.join(notes_path, file), f"ppt/notesSlides/{file}")
 
-        # copy_solely_necessary_files(source_zip, target_zip, source_folder)
+        copy_solely_necessary_files(source_zip, target_zip, source_folder)
 
-        copy_all_files(source_zip, target_zip, source_folder)
+        # copy_all_files(source_zip, target_zip, source_folder)
     # shutil.rmtree(source_folder)
 
 
@@ -67,16 +67,22 @@ def working_with_xml(source_folder, slides_to_copy):
     i = 0
     slides_path = f"{source_folder}/ppt/slides"
     temp_slides_path = f"{source_folder}/ppt/slides/temp"
+
+    slides_path_rels = f"{source_folder}/ppt/slides/_rels"
+    temp_slides_path_rels = f"{source_folder}/ppt/slides/_rels/temp"
     for slide in slides_to_copy:
         i += 1
-        change_slide_pptx(source_folder, temp_slides_path, slide, i)
+        change_slide_pptx(slides_path, temp_slides_path, slide, i)
+        change_rels_file(slides_path_rels, temp_slides_path_rels, slide, i)
     delete_all_slides(slides_path)
+    delete_all_slides(slides_path_rels)
 
-    move_slides(temp_slides_path, f"{source_folder}/ppt/slides")
+    move_slides(temp_slides_path, slides_path)
+    move_slides(temp_slides_path_rels, slides_path_rels)
 
 
 def delete_all_slides(slides_path):
-    files_to_delete = glob.glob(os.path.join(slides_path, 'slide*.xml'))
+    files_to_delete = glob.glob(os.path.join(slides_path, 'slide*'))
     for file_path in files_to_delete:
         try:
             os.remove(file_path)
@@ -94,25 +100,34 @@ def move_slides(source_folder, destination_folder):
                 shutil.move(file_path, destination_folder)
 
 
-def change_slide_pptx(source_folder, temp_slides_path, slide_num_old, slide_num_new):
-    slide_xml_path = f"{source_folder}/ppt/slides/slide{slide_num_old}.xml"
+def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_new):
+    slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml"
     tree = etree.parse(slide_xml_path)
     root = tree.getroot()
     namespaces = get_name_spaces_by_filepath(slide_xml_path)
     slide_id = root.find('.//a:t', namespaces=namespaces)
     if slide_id is not None:
         slide_id.text = str(slide_num_new)
-    blip_element = root.find('.//a:blip', namespaces=namespaces)
-    r = "{" + namespaces['r'] + "}"
-
-    if blip_element is not None:
-        new_embed_value = f'rId{slide_num_new + 2}'
-
-        blip_element.set(f"{r}embed", new_embed_value)
+    # blip_element = root.find('.//a:blip', namespaces=namespaces)
+    # r = "{" + namespaces['r'] + "}"
+    #
+    # if blip_element is not None:
+    #     new_embed_value = f'rId{slide_num_new + 2}'
+    #
+    #     blip_element.set(f"{r}embed", new_embed_value)
 
     if not os.path.exists(temp_slides_path):
         os.makedirs(temp_slides_path)
     slide_xml_path_new = f"{temp_slides_path}/slide{slide_num_new}.xml"
+    tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def change_rels_file(slides_path, temp_slides_path, slide_num_old, slide_num_new):
+    slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml.rels"
+    tree = etree.parse(slide_xml_path)
+    if not os.path.exists(temp_slides_path):
+        os.makedirs(temp_slides_path)
+    slide_xml_path_new = f"{temp_slides_path}/slide{slide_num_new}.xml.rels"
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
@@ -184,7 +199,6 @@ def copy_all_files(source_zip, target_zip, source_folder):
                 target_zip.write(os.path.join(source_folder, file), file)
             except OSError as e:
                 logging.warning(e)
-
 
 
 copy_pptx()
