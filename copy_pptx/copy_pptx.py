@@ -57,17 +57,19 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
                 if file == f"notesSlide{slide_num}.xml":
                     target_zip.write(os.path.join(notes_path, file), f"ppt/notesSlides/{file}")
 
-        copy_solely_necessary_files(source_zip, target_zip, source_folder)
+        # copy_solely_necessary_files(source_zip, target_zip, source_folder)
 
-        # copy_all_files(source_zip, target_zip, source_folder)
+        copy_all_files(source_zip, target_zip, source_folder)
     # shutil.rmtree(source_folder)
 
 
 def working_with_xml(source_folder, slides_to_copy):
     root_pptx_xml = f"{source_folder}/ppt/presentation.xml"
     root_pptx_xml_rels = f"{source_folder}/ppt/_rels/presentation.xml.rels"
+    root_content_types = f"{source_folder}/[Content_Types].xml"
     change_root_pptx_xml(root_pptx_xml, slides_to_copy)
     change_root_pptx_xml_rels(root_pptx_xml_rels, slides_to_copy)
+    change_root_context_type(root_content_types, slides_to_copy)
     i = 0
     slides_path = f"{source_folder}/ppt/slides"
     temp_slides_path = f"{source_folder}/ppt/slides/temp"
@@ -138,41 +140,60 @@ def change_rels_file(slides_path, temp_slides_path, slide_num_old, slide_num_new
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
-def extract_slide_numbers(text):
+def extract_slide_numbers(text, pattern):
     # Регулярное выражение для поиска строк, начинающихся на 'slides/slide', за которыми следуют цифры
-
-    pattern = r'slides/slide(\d+)\.xml'
 
     matches = re.findall(pattern, text)
     slide_numbers = [int(match) for match in matches]
+    if len(slide_numbers) == 0:
+        return None
 
-    return slide_numbers
+    return slide_numbers[0]
 
 
 def change_root_pptx_xml_rels(root_pptx_xml, slides_to_copy):
     tree = etree.parse(root_pptx_xml)
     root = tree.getroot()
 
-    # TODO:: Add step by master slides
-    slides_to_copy_with_step = [x + 2 for x in slides_to_copy]
     namespaces = get_name_spaces_by_filepath(root_pptx_xml)
-    res_pptx = dict()
 
-    # Нахождение элемента <Relationship> с Id="rId14"
     relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
     for rel in relationship_elements:
-        r_id = rel.get('Id')
-        print(extract_slide_numbers(rel.get('Target')))
-        r_num = 3
+        pattern = r'/ppt/slides/slide(\d+)\.xml'
+        r_num = extract_slide_numbers(rel.get('Target'), pattern)
 
-        if r_num not in slides_to_copy_with_step:
-            print(r_num)
-            res_pptx[r_num] = rel
+        if r_num not in slides_to_copy \
+                and r_num is not None:
 
-    for sldId in relationship_elements[len(slides_to_copy)::]:
-        parent = sldId.getparent()
-        if parent is not None:
-            parent.remove(sldId)
+            parent = rel.getparent()
+            if parent is not None:
+                parent.remove(rel)
+
+    tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def change_root_context_type(root_pptx_xml, slides_to_copy):
+    tree = etree.parse(root_pptx_xml)
+    root = tree.getroot()
+
+    namespaces = get_name_spaces_by_filepath(root_pptx_xml)
+
+    new_slides = [x+1 for x in range(len(slides_to_copy))]
+
+    pprint(new_slides)
+    relationship_elements = root.findall('.//Override', namespaces=namespaces)
+    for rel in relationship_elements:
+        pattern = r'slides/slide(\d+)\.xml'
+        r_num = extract_slide_numbers(rel.get('PartName'), pattern)
+
+        if r_num not in new_slides \
+                and r_num is not None:
+
+            parent = rel.getparent()
+            if parent is not None:
+                parent.remove(rel)
+
+
 
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
@@ -222,7 +243,9 @@ def copy_solely_necessary_files(source_zip, target_zip, source_folder):
     :return:
     """
     for file in source_zip.namelist():
-        if file.startswith("ppt/") and not file.startswith("ppt/slides"):
+        if file.startswith("ppt/") \
+                and not file.startswith("ppt/slides") \
+                and not file.startswith("ppt/_rels"):
             target_zip.write(os.path.join(source_folder, file), file)
 
 
