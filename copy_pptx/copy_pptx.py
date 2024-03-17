@@ -18,6 +18,36 @@ warnings.filterwarnings("ignore", category=UserWarning)
 script_location = Path(__file__).absolute().parent
 
 
+def search_string_in_xml_files_recursive(folder_path, search_string):
+    # Используем os.walk для рекурсивного обхода папок
+    for root, dirs, files in os.walk(folder_path):
+        # Фильтруем список файлов, оставляя только XML файлы
+        xml_files = [file for file in files if file.endswith('.xml')]
+
+        # Перебираем XML файлы
+        for xml_file in xml_files:
+            file_path = os.path.join(root, xml_file)
+
+            # Парсим XML файл
+            try:
+                tree = etree.parse(file_path)
+            except etree.XMLSyntaxError:
+                print(f"Ошибка при парсинге файла {file_path}. Пропускаем.")
+                continue
+
+            # Преобразуем дерево элементов в строку
+            xml_string = etree.tostring(tree, encoding='unicode')
+
+            # Ищем строку в XML строке
+            if search_string in xml_string:
+                print(f"Строка найдена в файле {file_path}")
+
+        # Пример использования
+        folder_path = f"{script_location}/source_pptx_extracted/ppt"
+        search_string = 'slide'
+        search_string_in_xml_files_recursive(folder_path, search_string)
+
+
 def copy_pptx():
     new_presentation = Presentation()
     path_to_new = f"{script_location}/res.pptx"
@@ -25,19 +55,10 @@ def copy_pptx():
 
     path_to_source = f"{script_location}/template.pptx"
 
-    presentation = Presentation(path_to_source)
-    slide_count = len(presentation.slides)
-
-    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21], slide_count)
-
-    source_folder = f"{script_location}/template"
-    os.makedirs(source_folder, exist_ok=True)
-
-    with zipfile.ZipFile(path_to_source, 'r') as source_zip:
-        source_zip.extractall(source_folder)
+    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
 
 
-def copy_slides(source_pptx, target_pptx, slides_to_copy, slide_count):
+def copy_slides(source_pptx, target_pptx, slides_to_copy):
     source_folder = f"{script_location}/source_pptx_extracted"
     os.makedirs(source_folder, exist_ok=True)
 
@@ -49,7 +70,7 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy, slide_count):
 
         copy_all_files(source_zip, target_zip, source_folder)
 
-    # shutil.rmtree(source_folder)
+    shutil.rmtree(source_folder)
 
 
 def working_with_xml(source_folder, slides_to_copy):
@@ -159,7 +180,6 @@ def change_rels_file(slides_path, slide_xml_path_new, temp_slides_path, old_num,
 
         if r_num != new_num \
                 and r_num is not None:
-
             rel.set('Target', f'../slides/slide{new_num}.xml')
 
     for rel in relationship_elements:
@@ -167,10 +187,10 @@ def change_rels_file(slides_path, slide_xml_path_new, temp_slides_path, old_num,
         r_num = extract_slide_numbers(rel.get('Target'), pattern)
         if r_num != new_num \
                 and r_num is not None:
-
             rel.set('Target', f'../notesSlides/notesSlide{new_num}.xml')
 
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
 
 def extract_slide_numbers(text, pattern):
     matches = re.findall(pattern, text)
@@ -254,22 +274,6 @@ def get_name_spaces_by_filepath(filepath):
     return dict([node for _, node in ET.iterparse(filepath,
                                                   events=['start-ns'])])
 
-
-def copy_solely_necessary_files(source_zip, target_zip, source_folder):
-    """
-    Adding addition files for pptx from source_zip pptx except some unnecessary files
-    :param source_zip: source pptx opened like zip
-    :param target_zip: target pptx opened like zip
-    :param source_folder: place where pptx temp extracted folder is located
-    :return:
-    """
-    for file in source_zip.namelist():
-        if file.startswith("ppt/") \
-                and not file.startswith("ppt/slides") \
-                and not file.startswith("ppt/_rels"):
-            target_zip.write(os.path.join(source_folder, file), file)
-
-
 def copy_all_files(source_zip, target_zip, source_folder):
     """
     Adding common files for pptx from source_zip pptx
@@ -279,8 +283,6 @@ def copy_all_files(source_zip, target_zip, source_folder):
     :return:
     """
     for file in source_zip.namelist():
-        # print(file)
-        # if not file.startswith("docProps/"):
         try:
             target_zip.write(os.path.join(source_folder, file), file)
         except OSError as e:
