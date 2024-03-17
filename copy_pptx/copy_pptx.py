@@ -24,9 +24,14 @@ def copy_pptx():
     new_presentation.save(path_to_new)
 
     path_to_source = f"{script_location}/template.pptx"
-    source_presentation = Presentation(path_to_source)
 
     copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
+
+    source_folder = f"{script_location}/template"
+    os.makedirs(source_folder, exist_ok=True)
+
+    with zipfile.ZipFile(path_to_source, 'r') as source_zip:
+        source_zip.extractall(source_folder)
 
 
 def copy_slides(source_pptx, target_pptx, slides_to_copy):
@@ -36,10 +41,11 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
     with zipfile.ZipFile(source_pptx, 'r') as source_zip:
         source_zip.extractall(source_folder)
 
-    with (zipfile.ZipFile(target_pptx, "a") as target_zip):
-        # working_with_xml(source_folder, slides_to_copy)
+    with (zipfile.ZipFile(target_pptx, "w") as target_zip):
+        working_with_xml(source_folder, slides_to_copy)
 
         copy_all_files(source_zip, target_zip, source_folder)
+
     # shutil.rmtree(source_folder)
 
 
@@ -47,6 +53,8 @@ def working_with_xml(source_folder, slides_to_copy):
     root_pptx_xml = f"{source_folder}/ppt/presentation.xml"
     root_pptx_xml_rels = f"{source_folder}/ppt/_rels/presentation.xml.rels"
     root_content_types = f"{source_folder}/[Content_Types].xml"
+    # authority_path = f"{source_folder}/ppt/commentAuthors.xml"
+    # change_authority(authority_path)
     change_root_pptx_xml(root_pptx_xml, slides_to_copy)
     change_root_pptx_xml_rels(root_pptx_xml_rels, slides_to_copy)
     change_root_context_type(root_content_types, slides_to_copy)
@@ -88,6 +96,23 @@ def move_slides(source_folder, destination_folder):
         shutil.rmtree(source_folder)
 
 
+def change_authority(root_pptx_xml):
+    tree = etree.parse(root_pptx_xml)
+    root = tree.getroot()
+
+    xml_snippet = '''
+    <p:cmAuthorLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main"/>
+    '''
+    snippet_element = etree.fromstring(xml_snippet)
+
+    for child in root:
+        root.remove(child)
+
+    root.append(snippet_element)
+
+    tree.write(root_pptx_xml)
+
+
 def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_new):
     slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml"
     tree = etree.parse(slide_xml_path)
@@ -108,8 +133,6 @@ def change_rels_file(slides_path, temp_slides_path, slide_num_old, slide_num_new
 
 
 def extract_slide_numbers(text, pattern):
-    # Регулярное выражение для поиска строк, начинающихся на 'slides/slide', за которыми следуют цифры
-
     matches = re.findall(pattern, text)
     slide_numbers = [int(match) for match in matches]
     if len(slide_numbers) == 0:
@@ -212,7 +235,6 @@ def copy_all_files(source_zip, target_zip, source_folder):
     :return:
     """
     for file in source_zip.namelist():
-        print(file)
         try:
             target_zip.write(os.path.join(source_folder, file), file)
         except OSError as e:
