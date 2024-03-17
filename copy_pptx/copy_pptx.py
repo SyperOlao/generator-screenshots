@@ -27,7 +27,6 @@ def copy_pptx():
     source_presentation = Presentation(path_to_source)
 
     copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
-    # new_presentation.save(path_to_new)
 
 
 def copy_slides(source_pptx, target_pptx, slides_to_copy):
@@ -38,26 +37,7 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
         source_zip.extractall(source_folder)
 
     with (zipfile.ZipFile(target_pptx, "a") as target_zip):
-
-        working_with_xml(source_folder, slides_to_copy)
-
-        for slide_num in slides_to_copy:
-            slide_xml_path = f"{source_folder}/ppt/slides"
-            target_zip.write(slide_xml_path, f"{slide_xml_path}/slide{slide_num}.xml")
-
-            slide_layout_xml_path = f"{source_folder}/ppt/slideLayouts"
-            target_zip.write(slide_layout_xml_path, f"{slide_layout_xml_path}/slideLayout{slide_num}.xml")
-
-            media_path = f"{source_folder}/ppt/media/"
-            for file in os.listdir(media_path):
-                target_zip.write(os.path.join(media_path, file), f"ppt/media/{file}")
-
-            notes_path = f"{source_folder}/ppt/notesSlides/"
-            for file in os.listdir(notes_path):
-                if file == f"notesSlide{slide_num}.xml":
-                    target_zip.write(os.path.join(notes_path, file), f"ppt/notesSlides/{file}")
-
-        # copy_solely_necessary_files(source_zip, target_zip, source_folder)
+        # working_with_xml(source_folder, slides_to_copy)
 
         copy_all_files(source_zip, target_zip, source_folder)
     # shutil.rmtree(source_folder)
@@ -111,19 +91,6 @@ def move_slides(source_folder, destination_folder):
 def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_new):
     slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml"
     tree = etree.parse(slide_xml_path)
-    root = tree.getroot()
-    namespaces = get_name_spaces_by_filepath(slide_xml_path)
-    slide_id = root.find('.//a:t', namespaces=namespaces)
-    if slide_id is not None:
-        slide_id.text = str(slide_num_new)
-
-    # blip_element = root.find('.//a:blip', namespaces=namespaces)
-    # r = "{" + namespaces['r'] + "}"
-    #
-    # if blip_element is not None:
-    #     new_embed_value = f'rId{slide_num_new + 2}'
-    #
-    #     blip_element.set(f"{r}embed", new_embed_value)
 
     if not os.path.exists(temp_slides_path):
         os.makedirs(temp_slides_path)
@@ -178,9 +145,8 @@ def change_root_context_type(root_pptx_xml, slides_to_copy):
 
     namespaces = get_name_spaces_by_filepath(root_pptx_xml)
 
-    new_slides = [x+1 for x in range(len(slides_to_copy))]
+    new_slides = [x + 1 for x in range(len(slides_to_copy))]
 
-    pprint(new_slides)
     relationship_elements = root.findall('.//Override', namespaces=namespaces)
     for rel in relationship_elements:
         pattern = r'slides/slide(\d+)\.xml'
@@ -193,8 +159,6 @@ def change_root_context_type(root_pptx_xml, slides_to_copy):
             if parent is not None:
                 parent.remove(rel)
 
-
-
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
@@ -202,19 +166,9 @@ def change_root_pptx_xml(root_pptx_xml, slides_to_copy):
     tree = etree.parse(root_pptx_xml)
     root = tree.getroot()
 
-    # TODO:: Add step by master slides
-    slides_to_copy_with_step = [x + 2 for x in slides_to_copy]
     namespaces = get_name_spaces(root)
 
-    # sld_id_lst = root.xpath('//ns0:sldIdLst', namespaces=namespaces)[0]
     sld_ids = root.xpath('//ns0:sldId', namespaces=namespaces)
-
-    #
-    # for sldId in sld_ids:
-    #     r_id = sldId.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
-    #     r_num = int(r_id.replace('rId', ''))
-    #     if r_num in slides_to_copy_with_step:
-    #         res_pptx[r_num] = sldId
 
     for sldId in sld_ids[len(slides_to_copy)::]:
         parent = sldId.getparent()
@@ -258,11 +212,11 @@ def copy_all_files(source_zip, target_zip, source_folder):
     :return:
     """
     for file in source_zip.namelist():
-        if file.startswith("ppt/"):
-            try:
-                target_zip.write(os.path.join(source_folder, file), file)
-            except OSError as e:
-                logging.warning(e)
+        print(file)
+        try:
+            target_zip.write(os.path.join(source_folder, file), file)
+        except OSError as e:
+            logging.warning(e)
 
 
 copy_pptx()
