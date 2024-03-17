@@ -77,14 +77,14 @@ def working_with_xml(source_folder, slides_to_copy):
     for slide in slides_to_copy:
         i += 1
         change_slide_pptx(f"{slides_path}/slide{slide}.xml", f"{temp_slides_path}/slide{i}.xml", temp_slides_path)
-        change_slide_pptx(f"{slides_path_rels}/slide{slide}.xml.rels", f"{temp_slides_path_rels}/slide{i}.xml.rels",
-                          temp_slides_path_rels)
+        change_rels_file(f"{slides_path_rels}/slide{slide}.xml.rels", f"{temp_slides_path_rels}/slide{i}.xml.rels",
+                         temp_slides_path_rels, slide, i)
         change_slide_pptx(f"{slides_path_note}/notesSlide{slide}.xml", f"{temp_slides_path_note}/notesSlide{i}.xml",
                           temp_slides_path_note)
 
-        change_slide_pptx(f"{slides_path_note_rels}/notesSlide{slide}.xml.rels",
-                          f"{temp_slides_path_note_rels}/notesSlide{i}.xml.rels",
-                          temp_slides_path_note_rels)
+        change_rels_file(f"{slides_path_note_rels}/notesSlide{slide}.xml.rels",
+                         f"{temp_slides_path_note_rels}/notesSlide{i}.xml.rels",
+                         temp_slides_path_note_rels, slide, i)
 
     delete_all_slides(slides_path, 'slide*')
     delete_all_slides(slides_path_rels, 'slide*')
@@ -145,14 +145,32 @@ def change_slide_pptx(slides_path, slide_xml_path_new, temp_slides_path):
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
-def change_rels_file(slides_path, temp_slides_path, slide_num_old, slide_num_new):
-    slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml.rels"
-    tree = etree.parse(slide_xml_path)
-    if not os.path.exists(temp_slides_path):
-        os.makedirs(temp_slides_path)
-    slide_xml_path_new = f"{temp_slides_path}/slide{slide_num_new}.xml.rels"
-    tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
+def change_rels_file(slides_path, slide_xml_path_new, temp_slides_path, old_num, new_num):
+    change_slide_pptx(slides_path, slide_xml_path_new, temp_slides_path)
+    tree = etree.parse(slide_xml_path_new)
+    root = tree.getroot()
 
+    namespaces = get_name_spaces_by_filepath(slide_xml_path_new)
+
+    relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
+    for rel in relationship_elements:
+        pattern = r'../slides/slide(\d+)\.xml'
+        r_num = extract_slide_numbers(rel.get('Target'), pattern)
+
+        if r_num != new_num \
+                and r_num is not None:
+
+            rel.set('Target', f'../slides/slide{new_num}.xml')
+
+    for rel in relationship_elements:
+        pattern = r'../notesSlides/notesSlide(\d+)\.xml'
+        r_num = extract_slide_numbers(rel.get('Target'), pattern)
+        if r_num != new_num \
+                and r_num is not None:
+
+            rel.set('Target', f'../notesSlides/notesSlide{new_num}.xml')
+
+    tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 def extract_slide_numbers(text, pattern):
     matches = re.findall(pattern, text)
@@ -198,13 +216,16 @@ def change_root_context_type(root_pptx_xml, slides_to_copy):
 
     relationship_elements = root.findall('.//Override', namespaces=namespaces)
     for rel in relationship_elements:
-        pattern = r'slides/slide(\d+)\.xml'
+        pattern = r'/ppt/slides/slide(\d+)\.xml'
         r_num = extract_slide_numbers(rel.get('PartName'), pattern)
 
         if r_num not in new_slides \
                 and r_num is not None:
             delete_child(rel)
-
+        r_num = extract_slide_numbers(rel.get('PartName'), r'/ppt/notesSlides/notesSlide(\d+)\.xml')
+        if r_num not in new_slides \
+                and r_num is not None:
+            delete_child(rel)
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
