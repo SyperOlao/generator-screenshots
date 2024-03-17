@@ -25,7 +25,10 @@ def copy_pptx():
 
     path_to_source = f"{script_location}/template.pptx"
 
-    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
+    presentation = Presentation(path_to_source)
+    slide_count = len(presentation.slides)
+
+    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21], slide_count)
 
     source_folder = f"{script_location}/template"
     os.makedirs(source_folder, exist_ok=True)
@@ -34,7 +37,7 @@ def copy_pptx():
         source_zip.extractall(source_folder)
 
 
-def copy_slides(source_pptx, target_pptx, slides_to_copy):
+def copy_slides(source_pptx, target_pptx, slides_to_copy, slide_count):
     source_folder = f"{script_location}/source_pptx_extracted"
     os.makedirs(source_folder, exist_ok=True)
 
@@ -53,8 +56,8 @@ def working_with_xml(source_folder, slides_to_copy):
     root_pptx_xml = f"{source_folder}/ppt/presentation.xml"
     root_pptx_xml_rels = f"{source_folder}/ppt/_rels/presentation.xml.rels"
     root_content_types = f"{source_folder}/[Content_Types].xml"
-    # authority_path = f"{source_folder}/ppt/commentAuthors.xml"
-    # change_authority(authority_path)
+    doc_props = f"{source_folder}/docProps/app.xml"
+    change_doc_props(doc_props, slides_to_copy)
     change_root_pptx_xml(root_pptx_xml, slides_to_copy)
     change_root_pptx_xml_rels(root_pptx_xml_rels, slides_to_copy)
     change_root_context_type(root_content_types, slides_to_copy)
@@ -96,20 +99,23 @@ def move_slides(source_folder, destination_folder):
         shutil.rmtree(source_folder)
 
 
-def change_authority(root_pptx_xml):
+def change_doc_props(root_pptx_xml, slides_to_copy):
     tree = etree.parse(root_pptx_xml)
     root = tree.getroot()
 
-    xml_snippet = '''
-    <p:cmAuthorLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main"/>
-    '''
-    snippet_element = etree.fromstring(xml_snippet)
+    namespaces = get_name_spaces_by_filepath(root_pptx_xml)
 
-    for child in root:
-        root.remove(child)
-
-    root.append(snippet_element)
-
+    num = root.find('.//Slides', namespaces=namespaces)
+    print(num.text)
+    current_slides_count = len(slides_to_copy)
+    num.text = str(current_slides_count)
+    relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)
+    i = 0
+    for rel in relationship_elements:
+        if "PowerPoint" in rel.text:
+            if i > current_slides_count:
+                delete_child(rel)
+            i += 1
     tree.write(root_pptx_xml)
 
 
@@ -149,17 +155,21 @@ def change_root_pptx_xml_rels(root_pptx_xml, slides_to_copy):
 
     relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
     for rel in relationship_elements:
-        pattern = r'/ppt/slides/slide(\d+)\.xml'
+        pattern = r'slides/slide(\d+)\.xml'
         r_num = extract_slide_numbers(rel.get('Target'), pattern)
+        new_slides = [x + 1 for x in range(len(slides_to_copy))]
 
-        if r_num not in slides_to_copy \
+        if r_num not in new_slides \
                 and r_num is not None:
-
-            parent = rel.getparent()
-            if parent is not None:
-                parent.remove(rel)
+            delete_child(rel)
 
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+
+def delete_child(rel):
+    parent = rel.getparent()
+    if parent is not None:
+        parent.remove(rel)
 
 
 def change_root_context_type(root_pptx_xml, slides_to_copy):
@@ -177,10 +187,7 @@ def change_root_context_type(root_pptx_xml, slides_to_copy):
 
         if r_num not in new_slides \
                 and r_num is not None:
-
-            parent = rel.getparent()
-            if parent is not None:
-                parent.remove(rel)
+            delete_child(rel)
 
     tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
@@ -235,6 +242,8 @@ def copy_all_files(source_zip, target_zip, source_folder):
     :return:
     """
     for file in source_zip.namelist():
+        # print(file)
+        # if not file.startswith("docProps/"):
         try:
             target_zip.write(os.path.join(source_folder, file), file)
         except OSError as e:
