@@ -67,19 +67,38 @@ def working_with_xml(source_folder, slides_to_copy):
 
     slides_path_rels = f"{source_folder}/ppt/slides/_rels"
     temp_slides_path_rels = f"{source_folder}/ppt/slides/_rels/temp"
+
+    slides_path_note = f"{source_folder}/ppt/notesSlides"
+    temp_slides_path_note = f"{source_folder}/ppt/notesSlides/temp"
+
+    slides_path_note_rels = f"{source_folder}/ppt/notesSlides/_rels"
+    temp_slides_path_note_rels = f"{source_folder}/ppt/notesSlides/_rels/temp"
+
     for slide in slides_to_copy:
         i += 1
-        change_slide_pptx(slides_path, temp_slides_path, slide, i)
-        change_rels_file(slides_path_rels, temp_slides_path_rels, slide, i)
-    delete_all_slides(slides_path)
-    delete_all_slides(slides_path_rels)
+        change_slide_pptx(f"{slides_path}/slide{slide}.xml", f"{temp_slides_path}/slide{i}.xml", temp_slides_path)
+        change_slide_pptx(f"{slides_path_rels}/slide{slide}.xml.rels", f"{temp_slides_path_rels}/slide{i}.xml.rels",
+                          temp_slides_path_rels)
+        change_slide_pptx(f"{slides_path_note}/notesSlide{slide}.xml", f"{temp_slides_path_note}/notesSlide{i}.xml",
+                          temp_slides_path_note)
+
+        change_slide_pptx(f"{slides_path_note_rels}/notesSlide{slide}.xml.rels",
+                          f"{temp_slides_path_note_rels}/notesSlide{i}.xml.rels",
+                          temp_slides_path_note_rels)
+
+    delete_all_slides(slides_path, 'slide*')
+    delete_all_slides(slides_path_rels, 'slide*')
+    delete_all_slides(slides_path_note, 'notesSlide*')
+    delete_all_slides(slides_path_note_rels, 'notesSlide*')
 
     move_slides(temp_slides_path, slides_path)
     move_slides(temp_slides_path_rels, slides_path_rels)
+    move_slides(temp_slides_path_note, slides_path_note)
+    move_slides(temp_slides_path_note_rels, slides_path_note_rels)
 
 
-def delete_all_slides(slides_path):
-    files_to_delete = glob.glob(os.path.join(slides_path, 'slide*'))
+def delete_all_slides(slides_path, pattern):
+    files_to_delete = glob.glob(os.path.join(slides_path, pattern))
     for file_path in files_to_delete:
         try:
             os.remove(file_path)
@@ -119,13 +138,10 @@ def change_doc_props(root_pptx_xml, slides_to_copy):
     tree.write(root_pptx_xml)
 
 
-def change_slide_pptx(slides_path, temp_slides_path, slide_num_old, slide_num_new):
-    slide_xml_path = f"{slides_path}/slide{slide_num_old}.xml"
-    tree = etree.parse(slide_xml_path)
-
+def change_slide_pptx(slides_path, slide_xml_path_new, temp_slides_path):
+    tree = etree.parse(slides_path)
     if not os.path.exists(temp_slides_path):
         os.makedirs(temp_slides_path)
-    slide_xml_path_new = f"{temp_slides_path}/slide{slide_num_new}.xml"
     tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
 
