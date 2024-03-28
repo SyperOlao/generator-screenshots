@@ -18,44 +18,22 @@ warnings.filterwarnings("ignore", category=UserWarning)
 script_location = Path(__file__).absolute().parent
 
 
-def search_string_in_xml_files_recursive(folder_path, search_string):
-    # Используем os.walk для рекурсивного обхода папок
-    for root, dirs, files in os.walk(folder_path):
-        # Фильтруем список файлов, оставляя только XML файлы
-        xml_files = [file for file in files if file.endswith('.xml')]
-
-        # Перебираем XML файлы
-        for xml_file in xml_files:
-            file_path = os.path.join(root, xml_file)
-
-            # Парсим XML файл
-            try:
-                tree = etree.parse(file_path)
-            except etree.XMLSyntaxError:
-                print(f"Ошибка при парсинге файла {file_path}. Пропускаем.")
-                continue
-
-            # Преобразуем дерево элементов в строку
-            xml_string = etree.tostring(tree, encoding='unicode')
-
-            # Ищем строку в XML строке
-            if search_string in xml_string:
-                print(f"Строка найдена в файле {file_path}")
-
-        # Пример использования
-        folder_path = f"{script_location}/source_pptx_extracted/ppt"
-        search_string = 'slide'
-        search_string_in_xml_files_recursive(folder_path, search_string)
-
-
 def copy_pptx():
     new_presentation = Presentation()
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
-
     path_to_source = f"{script_location}/template.pptx"
 
-    copy_slides(path_to_source, path_to_new, [1, 2, 5, 8, 4, 7, 27, 21])
+    source_folder_win = f"{script_location}/win"
+    os.makedirs(source_folder_win, exist_ok=True)
+
+    with zipfile.ZipFile(f"{script_location}/win.pptx", 'r') as source_zip:
+        source_zip.extractall(source_folder_win)
+    copy_slides(path_to_source, path_to_new,
+                [22, 23, 22, 23, 26, 26, 12, 12, 16, 17, 22, 23, 18, 16, 17, 22, 23, 16, 17, 16, 17, 32, 16, 17, 18, 18,
+                 22, 23, 26, 26, 18, 16, 17, 18, 9, 16, 17, 16, 17, 22, 23, 16, 17, 18, 16, 17, 9, 16, 17, 18, 22, 23,
+                 18, 9, 9, 18, 16, 17, 22, 23, 16, 17, 26, 16, 17, 18, 16, 17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
+                 17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26])
 
 
 def copy_slides(source_pptx, target_pptx, slides_to_copy):
@@ -70,7 +48,7 @@ def copy_slides(source_pptx, target_pptx, slides_to_copy):
 
         copy_all_files(source_zip, target_zip, source_folder)
 
-    shutil.rmtree(source_folder)
+    # shutil.rmtree(source_folder)
 
 
 def working_with_xml(source_folder, slides_to_copy):
@@ -273,6 +251,7 @@ def get_name_spaces(root):
 def get_name_spaces_by_filepath(filepath):
     return dict([node for _, node in ET.iterparse(filepath,
                                                   events=['start-ns'])])
+
 
 def copy_all_files(source_zip, target_zip, source_folder):
     """
