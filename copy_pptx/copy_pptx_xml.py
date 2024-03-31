@@ -172,6 +172,7 @@ class CopyPptx:
 
         relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
         self._deep_change_target_links_rels(relationship_elements)
+
         for rel in relationship_elements:
             pattern = r'../slides/slide(\d+)\.xml'
             r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
@@ -233,8 +234,8 @@ class CopyPptx:
             embedding_index = str(self.add_target_indexes(chart_target_type))
 
             chart_path_to_lib = chart_target.replace('..', self.source_folder + '/ppt')
+            new_chart_path = os.path.dirname(chart_path_to_lib) + '/temp'
 
-            new_chart_path = chart_path_to_lib + '/temp'
             if embedding_index == "1":
                 CopyPptx.rename_and_move_file(chart_path_to_lib,
                                               chart_path_to_lib.split('/')[-1],
@@ -339,9 +340,7 @@ class CopyPptx:
         file_name, file_extension = os.path.splitext(old_path)
         new_path = os.path.join(new_directory, new_name + file_extension)
 
-        if not os.path.exists(new_directory):
-            logging.warning(f"Dir {new_directory} is not found.")
-            return
+        CopyPptx.create_a_dir(new_directory)
 
         shutil.move(old_path, new_path)
         logging.warning(f"File has been renamed and moved: {old_path} -> {new_path}")
