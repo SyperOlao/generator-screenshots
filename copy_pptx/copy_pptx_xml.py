@@ -110,15 +110,18 @@ class CopyPptx:
             for i in range(self.target_indexes[target_type]):
                 etree.SubElement(relations, "Override",
                                  {
-                                     "ContentType": f"{content_type[target_type]['ct']}",
-                                     "Target": CopyPptx.replace_number(f"{content_type[target_type]['pt']}",
-                                                                       str(i + 1))})
+                                     "PartName": CopyPptx.replace_number(f"{content_type[target_type]['pt']}",
+                                                                         str(i + 1)),
+                                     "ContentType": f"{content_type[target_type]['ct']}"
+                                 })
         for i in range(len(self.slides_to_copy)):
             etree.SubElement(relations, "Override",
                              {
-                                 "ContentType": f"{content_type['slide']['ct']}",
-                                 "Target": CopyPptx.replace_number(f"{content_type['slide']['pt']}",
-                                                                   str(i + 1))})
+
+                                 "PartName": CopyPptx.replace_number(f"{content_type['slide']['pt']}",
+                                                                     str(i + 1)),
+                                 "ContentType": f"{content_type['slide']['ct']}"
+                             })
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_root_pptx_xml_rels(self):
@@ -201,7 +204,6 @@ class CopyPptx:
                 self._change_chart(path_to_lib, index)
                 rel.set('Target', f'../charts/charts{index}.xml')
 
-            print(target_type)
             if target_type == 'notesSlide':
                 pattern = r'../notesSlides/notesSlide(\d+)\.xml'
                 r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
@@ -214,20 +216,25 @@ class CopyPptx:
     def _change_notes_slides(self, path_to_lib, index):
         CopyPptx._change_file_index(path_to_lib, index)
         notes_slides_rels = CopyPptx._change_file_index_rels(path_to_lib, index)
-
-        relationship_elements = CopyPptx._get_relationship_elements(notes_slides_rels)
+        tree = etree.parse(notes_slides_rels)
+        root = tree.getroot()
+        namespaces = CopyPptx.get_name_spaces_by_filepath(notes_slides_rels)
+        relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
         for notes_rel in relationship_elements:
             pattern = r'../slides/slide(\d+)\.xml'
             r_num = CopyPptx.extract_slide_numbers(notes_rel.get('Target'), pattern)
-
             if r_num != index \
                     and r_num is not None:
                 notes_rel.set('Target', f'../slides/slide{index}.xml')
+        tree.write(notes_slides_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def _change_chart(self, path_to_lib, index):
         CopyPptx._change_file_index(path_to_lib, index)
         slide_xml_path_new = CopyPptx._change_file_index_rels(path_to_lib, index)
-        relationship_elements = CopyPptx._get_relationship_elements(slide_xml_path_new)
+        tree = etree.parse(slide_xml_path_new)
+        root = tree.getroot()
+        namespaces = CopyPptx.get_name_spaces_by_filepath(slide_xml_path_new)
+        relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
         for rel in relationship_elements:
             chart_target = str(rel.get('Target'))
             chart_target_type = str(rel.get('Type')).split('/')[-1]
@@ -337,9 +344,8 @@ class CopyPptx:
         if not os.path.isfile(old_path):
             logging.warning(f"File {old_path} is not found.")
             return
-        file_name, file_extension = os.path.splitext(old_path)
-        new_path = os.path.join(new_directory, new_name + file_extension)
-
+        new_path = new_directory + "/" + new_name
+        print("new_path", new_path)
         CopyPptx.create_a_dir(new_directory)
 
         shutil.move(old_path, new_path)
