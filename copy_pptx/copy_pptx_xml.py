@@ -16,6 +16,21 @@ import shutil
 script_location = Path(__file__).absolute().parent
 
 
+def generate_ids(n):
+    number = 3900
+    counter = 0
+    step = 3
+    numbers = []
+    for _ in range(n):
+        numbers.append(number)
+        counter += 1
+        if counter == 6:
+            step = 1
+            counter = 0
+        number += step
+    return numbers
+
+
 class CopyPptx:
     source_folder = f"{script_location}/source_pptx_extracted"
     target_indexes = dict()
@@ -24,6 +39,7 @@ class CopyPptx:
         self.path_to_source = path_to_source
         self.path_to_new = path_to_new
         self.slides_to_copy = slides_to_copy
+        self.len_master_id = 0
 
     def copy_slides(self):
         os.makedirs(self.source_folder, exist_ok=True)
@@ -39,25 +55,62 @@ class CopyPptx:
         # shutil.rmtree(source_folder)
 
     def _working_with_xml(self):
-        i = 0
+
         slides_path = f"{self.source_folder}/ppt/slides"
-        slides_path_note = f"{self.source_folder}/ppt/notesSlides"
-        slides_path_charts = f"{self.source_folder}/ppt/charts"
-        slides_path_embeddings = f"{self.source_folder}/ppt/embeddings"
+        self.change_root_pptx_xml()
+        self.change_root_pptx_xml_rels()
+        i = 0
         for slide in self.slides_to_copy:
             i += 1
             self._change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i)
 
-        CopyPptx.delete_files_from_folder(slides_path, 'slide*')
-        CopyPptx.delete_files_from_folder(slides_path_note, 'notesSlide*')
-        CopyPptx.delete_files_from_folder(slides_path_charts, 'charts*')
-        CopyPptx.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
+        self.delete_and_move_files(slides_path)
 
-        CopyPptx.move_all_files(slides_path)
-        CopyPptx.move_all_files(slides_path_note)
-        CopyPptx.move_all_files(slides_path_charts)
-        CopyPptx.move_all_files(slides_path_embeddings)
+    def change_root_pptx_xml_rels(self):
+        root_pptx_xml = f"{self.source_folder}/ppt/_rels/presentation.xml.rels"
+        tree = etree.parse(root_pptx_xml)
+        root = tree.getroot()
+        namespaces = CopyPptx.get_name_spaces_by_filepath(root_pptx_xml)
+        relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
+        all_type = ""
+        relations = None
+        for rel in relationship_elements:
+            target_type = str(rel.get('Type')).split('/')[-1]
+            if target_type == 'slide':
+                all_type = str(rel.get('Type'))
+                relations = rel.getparent()
+                if relations is not None:
+                    print(relations)
+                    relations.remove(rel)
+
+        for i in range(len(self.slides_to_copy)):
+            etree.SubElement(relations, "Relationship",
+                             {'Id': f'rId{self.len_master_id + i + 1}',
+                              "Type": f'{all_type}',
+                              "Target": f'slides/slide{i + 1}.xml'})
+        print(root_pptx_xml)
+        tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+    def change_root_pptx_xml(self):
+        root_pptx_xml = f"{self.source_folder}/ppt/presentation.xml"
+        tree = etree.parse(root_pptx_xml)
+        root = tree.getroot()
+
+        namespaces = self.get_name_spaces(root)
+        sld_ids = root.xpath('//ns0:sldId', namespaces=namespaces)
+        self.len_master_id = len(root.xpath('//ns0:sldMasterId', namespaces=namespaces))
+
+        for sldId in sld_ids:
+            CopyPptx.delete_child(sldId)
+        sldIdLst = root.find('ns0:sldIdLst', namespaces=namespaces)
+        ids = generate_ids(len(self.slides_to_copy))
+        for i in range(len(self.slides_to_copy)):
+            etree.SubElement(sldIdLst, "{" + namespaces['ns1'] + "}sldId",
+                             {'id': f'{str(ids[i])}',
+                              "{" + namespaces['ns1'] + "}id": f'rId{i + 1 + self.len_master_id}'})
+
+        tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def _change_rels_file(self, slides_path, new_index):
         slide_xml_path_new = self._change_file_index_rels(slides_path, new_index)
@@ -80,7 +133,6 @@ class CopyPptx:
 
         # tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    # TODO:: не забыть переместить и удалить файлы
     def _deep_change_target_links_rels(self, relationship_elements):
         for rel in relationship_elements:
             target = str(rel.get('Target'))
@@ -250,6 +302,21 @@ class CopyPptx:
         parent = rel.getparent()
         if parent is not None:
             parent.remove(rel)
+
+    def delete_and_move_files(self, slides_path):
+        slides_path_note = f"{self.source_folder}/ppt/notesSlides"
+        slides_path_charts = f"{self.source_folder}/ppt/charts"
+        slides_path_embeddings = f"{self.source_folder}/ppt/embeddings"
+
+        CopyPptx.delete_files_from_folder(slides_path, 'slide*')
+        CopyPptx.delete_files_from_folder(slides_path_note, 'notesSlide*')
+        CopyPptx.delete_files_from_folder(slides_path_charts, 'charts*')
+        CopyPptx.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
+
+        CopyPptx.move_all_files(slides_path)
+        CopyPptx.move_all_files(slides_path_note)
+        CopyPptx.move_all_files(slides_path_charts)
+        CopyPptx.move_all_files(slides_path_embeddings)
 
 
 def main():
