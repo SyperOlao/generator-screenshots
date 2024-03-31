@@ -41,11 +41,23 @@ class CopyPptx:
     def _working_with_xml(self):
         i = 0
         slides_path = f"{self.source_folder}/ppt/slides"
-
+        slides_path_note = f"{self.source_folder}/ppt/notesSlides"
+        slides_path_charts = f"{self.source_folder}/ppt/charts"
+        slides_path_embeddings = f"{self.source_folder}/ppt/embeddings"
         for slide in self.slides_to_copy:
             i += 1
             self._change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i)
+
+        CopyPptx.delete_files_from_folder(slides_path, 'slide*')
+        CopyPptx.delete_files_from_folder(slides_path_note, 'notesSlide*')
+        CopyPptx.delete_files_from_folder(slides_path_charts, 'charts*')
+        CopyPptx.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
+
+        CopyPptx.move_all_files(slides_path)
+        CopyPptx.move_all_files(slides_path_note)
+        CopyPptx.move_all_files(slides_path_charts)
+        CopyPptx.move_all_files(slides_path_embeddings)
 
     def _change_rels_file(self, slides_path, new_index):
         slide_xml_path_new = self._change_file_index_rels(slides_path, new_index)
@@ -79,6 +91,7 @@ class CopyPptx:
 
             if target_type == 'chart':
                 self._change_chart(path_to_lib, index)
+                rel.set('Target', f'../charts/charts{index}.xml')
 
             if target_type == 'notesSlides':
                 pattern = r'../notesSlides/notesSlide(\d+)\.xml'
@@ -155,6 +168,20 @@ class CopyPptx:
         return self.target_indexes[target_type]
 
     @staticmethod
+    def delete_files_from_folder(slides_path, pattern):
+        CopyPptx.delete_all_files(slides_path, pattern)
+        CopyPptx.delete_all_files(slides_path + '/_rels', pattern)
+
+    @staticmethod
+    def delete_all_files(slides_path, pattern):
+        files_to_delete = glob.glob(os.path.join(slides_path, pattern))
+        for file_path in files_to_delete:
+            try:
+                os.remove(file_path)
+            except OSError as e:
+                logging.warning(f"Error of deleting file '{file_path}': {e}")
+
+    @staticmethod
     def extract_slide_numbers(text, pattern):
         matches = re.findall(pattern, text)
         slide_numbers = [int(match) for match in matches]
@@ -194,6 +221,24 @@ class CopyPptx:
     def get_name_spaces(root):
         return dict([
             node for _, node in ET.iterparse(StringIO(str(ET.tostring(root), encoding='utf-8')), events=['start-ns'])])
+
+    @staticmethod
+    def move_all_files(source_folder):
+        CopyPptx.move_files(source_folder)
+        CopyPptx.move_files(source_folder + '/_rels')
+
+    @staticmethod
+    def move_files(source_folder):
+        temp_folder = source_folder + "/temp"
+        if not os.path.exists(temp_folder):
+            logging.warning(f"Source folder '{source_folder}' can not be find.")
+        else:
+            for filename in os.listdir(temp_folder):
+                file_path = os.path.join(temp_folder, filename)
+                if os.path.isfile(file_path):
+                    shutil.move(file_path, source_folder)
+
+            shutil.rmtree(temp_folder)
 
     @staticmethod
     def get_name_spaces_by_filepath(filepath):
