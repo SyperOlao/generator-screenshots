@@ -124,7 +124,6 @@ def change_doc_props(root_pptx_xml, slides_to_copy):
     namespaces = get_name_spaces_by_filepath(root_pptx_xml)
 
     num = root.find('.//Slides', namespaces=namespaces)
-    print(num.text)
     current_slides_count = len(slides_to_copy)
     num.text = str(current_slides_count)
     relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)

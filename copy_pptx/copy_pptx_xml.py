@@ -59,7 +59,7 @@ class CopyPptx:
         slides_path = f"{self.source_folder}/ppt/slides"
         self.change_root_pptx_xml()
         self.change_root_pptx_xml_rels()
-
+        self.change_doc_props()
         i = 0
         for slide in self.slides_to_copy:
             i += 1
@@ -68,6 +68,26 @@ class CopyPptx:
 
         self.change_root_context_type()
         self.delete_and_move_files(slides_path)
+
+    # TODO: rebuild
+    def change_doc_props(self):
+        root_pptx_xml = f"{self.source_folder}/docProps/app.xml"
+        tree = etree.parse(root_pptx_xml)
+        root = tree.getroot()
+
+        namespaces = self.get_name_spaces_by_filepath(root_pptx_xml)
+
+        num = root.find('.//Slides', namespaces=namespaces)
+        current_slides_count = len(self.slides_to_copy)
+        num.text = str(current_slides_count)
+        relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)
+        i = 0
+        for rel in relationship_elements:
+            if "PowerPoint" in rel.text:
+                if i > current_slides_count:
+                    self.delete_child(rel)
+                i += 1
+        tree.write(root_pptx_xml)
 
     def change_root_context_type(self):
         root_pptx_xml = f"{self.source_folder}/[Content_Types].xml"
@@ -91,8 +111,14 @@ class CopyPptx:
                 etree.SubElement(relations, "Override",
                                  {
                                      "ContentType": f"{content_type[target_type]['ct']}",
-                                     "Target": CopyPptx.replace_number(f"{content_type[target_type]['pt']}", i + 1)})
-
+                                     "Target": CopyPptx.replace_number(f"{content_type[target_type]['pt']}",
+                                                                       str(i + 1))})
+        for i in range(len(self.slides_to_copy)):
+            etree.SubElement(relations, "Override",
+                             {
+                                 "ContentType": f"{content_type['slide']['ct']}",
+                                 "Target": CopyPptx.replace_number(f"{content_type['slide']['pt']}",
+                                                                   str(i + 1))})
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_root_pptx_xml_rels(self):
@@ -174,7 +200,8 @@ class CopyPptx:
                 self._change_chart(path_to_lib, index)
                 rel.set('Target', f'../charts/charts{index}.xml')
 
-            if target_type == 'notesSlides':
+            print(target_type)
+            if target_type == 'notesSlide':
                 pattern = r'../notesSlides/notesSlide(\d+)\.xml'
                 r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
                 if r_num != index \
@@ -213,7 +240,7 @@ class CopyPptx:
                                               chart_path_to_lib.split('/')[-1],
                                               new_chart_path)
             else:
-                print(chart_path_to_lib.split('/')[-1])
+
                 new_name = str(CopyPptx.replace_number(chart_path_to_lib.split('/')[-1],
                                                        embedding_index))
 
@@ -254,7 +281,6 @@ class CopyPptx:
                 logging.warning(e)
 
     def add_target_indexes(self, target_type):
-        print("target_type", target_type)
         if target_type in self.target_indexes:
             self.target_indexes[target_type] = self.target_indexes.get(target_type) + 1
         else:
@@ -308,24 +334,24 @@ class CopyPptx:
     @staticmethod
     def rename_and_move_file(old_path: str, new_name: str, new_directory):
         if not os.path.isfile(old_path):
-            print(f"File {old_path} is not found.")
+            logging.warning(f"File {old_path} is not found.")
             return
         file_name, file_extension = os.path.splitext(old_path)
         new_path = os.path.join(new_directory, new_name + file_extension)
 
         if not os.path.exists(new_directory):
-            print(f"Dir {new_directory} is not found.")
+            logging.warning(f"Dir {new_directory} is not found.")
             return
 
         shutil.move(old_path, new_path)
-        print(f"File has been renamed and moved: {old_path} -> {new_path}")
+        logging.warning(f"File has been renamed and moved: {old_path} -> {new_path}")
 
     @staticmethod
     def replace_number(source_str, new_index):
         if not re.search(r'\d', source_str):
             return source_str
         else:
-            return re.sub(r'\d', str(new_index), source_str)
+            return re.sub(r'\d+', str(new_index), source_str)
 
     @staticmethod
     def create_a_dir(path):
