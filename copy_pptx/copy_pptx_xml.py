@@ -49,7 +49,6 @@ class CopyPptx:
 
     def _change_rels_file(self, slides_path, new_index):
         slide_xml_path_new = self._change_file_index_rels(slides_path, new_index)
-        print(slide_xml_path_new)
         relationship_elements = CopyPptx._get_relationship_elements(slide_xml_path_new)
         self._deep_change_target_links_rels(relationship_elements)
         for rel in relationship_elements:
@@ -69,6 +68,7 @@ class CopyPptx:
 
         # tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
+    # TODO:: не забыть переместить и удалить файлы
     def _deep_change_target_links_rels(self, relationship_elements):
         for rel in relationship_elements:
             target = str(rel.get('Target'))
@@ -78,13 +78,45 @@ class CopyPptx:
             index = self.add_target_indexes(target_type)
 
             if target_type == 'chart':
-                print("path_to_lib", path_to_lib)
-                self._change_file_index(path_to_lib, index)
-                slide_xml_path_new = CopyPptx._change_file_index_rels(path_to_lib, index)
-                print(slide_xml_path_new)
-                relationship_elements = CopyPptx._get_relationship_elements(slide_xml_path_new)
+                self._change_chart(path_to_lib, index)
 
+            if target_type == 'notesSlides':
+                pattern = r'../notesSlides/notesSlide(\d+)\.xml'
+                r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
+                if r_num != index \
+                        and r_num is not None:
+                    rel.set('Target', f'../notesSlides/notesSlide{index}.xml')
+                self._change_notes_slides(path_to_lib, index)
         # rel.set('Target', value)
+
+    def _change_notes_slides(self, path_to_lib, index):
+        CopyPptx._change_file_index(path_to_lib, index)
+        notes_slides_rels = CopyPptx._change_file_index_rels(path_to_lib, index)
+
+        relationship_elements = CopyPptx._get_relationship_elements(notes_slides_rels)
+        for notes_rel in relationship_elements:
+            pattern = r'../slides/slide(\d+)\.xml'
+            r_num = CopyPptx.extract_slide_numbers(notes_rel.get('Target'), pattern)
+
+            if r_num != index \
+                    and r_num is not None:
+                notes_rel.set('Target', f'../slides/slide{index}.xml')
+
+    def _change_chart(self, path_to_lib, index):
+        CopyPptx._change_file_index(path_to_lib, index)
+        slide_xml_path_new = CopyPptx._change_file_index_rels(path_to_lib, index)
+        relationship_elements = CopyPptx._get_relationship_elements(slide_xml_path_new)
+        for rel in relationship_elements:
+            chart_target = str(rel.get('Target'))
+            chart_target_type = str(rel.get('Type')).split('/')[-1]
+            embedding_index = self.add_target_indexes(chart_target_type)
+
+            chart_path_to_lib = chart_target.replace('..', self.source_folder + '/ppt')
+            if embedding_index == 1:
+                CopyPptx._change_file_index(chart_path_to_lib, "")
+            else:
+                CopyPptx._change_file_index(chart_path_to_lib, embedding_index)
+                rel.set('Target', CopyPptx.replace_number(chart_target, embedding_index))
 
     @staticmethod
     def _get_relationship_elements(slide_xml_path):
@@ -93,7 +125,8 @@ class CopyPptx:
         namespaces = CopyPptx.get_name_spaces_by_filepath(slide_xml_path)
         return root.findall('.//Relationship', namespaces=namespaces)
 
-    def _change_target_links_rels(self, relationship_elements, pattern, new_num, value):
+    @staticmethod
+    def _change_target_links_rels(relationship_elements, pattern, new_num, value):
         for rel in relationship_elements:
             r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
             if r_num != new_num \
@@ -136,8 +169,9 @@ class CopyPptx:
         CopyPptx.create_a_dir(temp_slides_path)
         tree = etree.parse(slides_path)
         new_file_number = re.sub(r'\d', str(new_index), str(slides_path.rsplit('/', 1)[1])) + '.rels'
-        tree.write(temp_slides_path + new_file_number, pretty_print=True, xml_declaration=True, encoding='utf-8')
-        return f"{temp_slides_path}/{new_file_number}"
+        result_path = f"{temp_slides_path}/{new_file_number}"
+        tree.write(result_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+        return result_path
 
     @staticmethod
     def _change_file_index(slides_path, new_index):
@@ -146,6 +180,10 @@ class CopyPptx:
         CopyPptx.create_a_dir(temp_slides_path)
         new_file_number = re.sub(r'\d', str(new_index), str(slides_path.rsplit('/', 1)[1]))
         tree.write(temp_slides_path + new_file_number, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+    @staticmethod
+    def replace_number(source_str, new_index):
+        re.sub(r'\d', str(new_index), str(source_str))
 
     @staticmethod
     def create_a_dir(path):
