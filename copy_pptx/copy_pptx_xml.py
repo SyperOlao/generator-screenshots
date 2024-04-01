@@ -1,4 +1,5 @@
 import logging
+import string
 from io import StringIO
 import random
 
@@ -82,7 +83,6 @@ class CopyPptx:
 
         tree.write(slide_xml_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    # TODO: rebuild
     def change_doc_props(self):
         root_pptx_xml = f"{self.source_folder}/docProps/app.xml"
         tree = etree.parse(root_pptx_xml)
@@ -103,9 +103,9 @@ class CopyPptx:
                )
         for rel in relationship_elements:
             if "PowerPoint" in rel.text:
-                    tag = rel
-                    parent = rel.getparent()
-                    self.delete_child(rel)
+                tag = rel
+                parent = rel.getparent()
+                self.delete_child(rel)
         for i in range(len(self.slides_to_copy)):
             a = etree.SubElement(parent, "{" + namespaces['vt'] + "}lpstr")
             a.text = "Презентация PowerPoint"
@@ -205,7 +205,7 @@ class CopyPptx:
             path_to_lib = target.replace('..', self.source_folder + '/ppt')
             index = self.add_target_indexes(target_type)
             if target_type == 'chart':
-                self._change_chart(path_to_lib, index)
+                self._change_chart_rels(path_to_lib, index)
                 rel.set('Target', f'../charts/chart{index}.xml')
 
             if target_type == 'notesSlide':
@@ -232,14 +232,48 @@ class CopyPptx:
                 notes_rel.set('Target', f'../slides/slide{index}.xml')
         tree.write(notes_slides_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    def _change_chart(self, path_to_lib, index):
-        CopyPptx._change_file_index(path_to_lib, index)
-        slide_xml_path_new = CopyPptx._change_file_index_rels(path_to_lib, index)
+    @staticmethod
+    def generate_hex_string():
 
-        tree = etree.parse(slide_xml_path_new)
+        # Генерация первой группы символов
+        group1 = ''.join(random.choices('0123456789ABCDEF', k=4))
+        # Генерация второй группы символов
+        group2 = ''.join(random.choices('0123456789ABCDEF', k=4))
+        # Генерация третьей группы символов
+        group3 = ''.join(random.choices('0123456789ABCDEF', k=4))
+        # Генерация четвертой группы символов
+        group4 = ''.join(random.choices('0123456789ABCDEF', k=12))
+
+        formatted_hex_string = f"{group1}-{group2}-{group3}-{group4}"
+        return formatted_hex_string
+
+    def _change_chart_id(self, path_to_chart):
+        tree = etree.parse(path_to_chart)
         root = tree.getroot()
-        namespaces = CopyPptx.get_name_spaces_by_filepath(slide_xml_path_new)
+        namespaces = CopyPptx.get_name_spaces_by_filepath(path_to_chart)
+        unique_ids = root.findall('.//c16:uniqueId', namespaces=namespaces)
+        hex = CopyPptx.generate_hex_string()
+        print(hex)
+        # {00000003-1A3C-46CD-A049-AE5FE0497CE7}
+        # {00000001-EB99-668B-87F1-6F6B
+        # 920M-B6CJ-OC8Y-0B0NXSWHZRJV
+        for id in unique_ids:
+            curr_id = str(id.get('val')).split('-')[0][1::]
+            print(curr_id)
+            id.set('val', "{" + f"{curr_id}-{hex}" + "}")
+        # c16:uniqueId
+        tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+    def _change_chart_rels(self, path_to_chart, index):
+        self._change_chart_id(path_to_chart)
+        CopyPptx._change_file_index(path_to_chart, index)
+        chart_path_rels = CopyPptx._change_file_index_rels(path_to_chart, index)
+
+        tree = etree.parse(chart_path_rels)
+        root = tree.getroot()
+        namespaces = CopyPptx.get_name_spaces_by_filepath(chart_path_rels)
         relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
+
         for rel in relationship_elements:
             chart_target = str(rel.get('Target'))
             chart_target_type = str(rel.get('Type')).split('/')[-1]
@@ -255,9 +289,9 @@ class CopyPptx:
             CopyPptx.rename_and_move_file(chart_path_to_embedding,
                                           new_name, new_chart_path)
 
-            rel.set('Target',  f'../embeddings/{new_name}')
+            rel.set('Target', f'../embeddings/{new_name}')
 
-        tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
+        tree.write(chart_path_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     @staticmethod
     def get_embedding_name(chart_path_to_embedding, embedding_index):
@@ -413,7 +447,7 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [1, 2, 3])
+                         [1, 1, 1, 4, 4, 4, 5, 5, 5, 3, 3, 3, 2, 2, 2, 22, 23, 24, 12, 12, 22, 22, 22, 23])
 
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
