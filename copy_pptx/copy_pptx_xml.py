@@ -1,5 +1,6 @@
 import logging
 from io import StringIO
+import random
 
 from pptx import Presentation
 from pathlib import Path
@@ -63,11 +64,23 @@ class CopyPptx:
         i = 0
         for slide in self.slides_to_copy:
             i += 1
+            self.change_slide_id(slides_path, slide)
             self._change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i)
 
         self.change_root_context_type()
         self.delete_and_move_files(slides_path)
+
+    def change_slide_id(self, slides_path, old_index):
+        slide_xml_path = f"{slides_path}/slide{old_index}.xml"
+        tree = etree.parse(slide_xml_path)
+        root = tree.getroot()
+        namespaces = self.get_name_spaces_by_filepath(slide_xml_path)
+        creation_id = root.find('.//p14:creationId', namespaces=namespaces)
+        if creation_id is not None:
+            creation_id.set('val', f'{random.sample(range(2000000000, 7000000000), 1)[0]}')
+
+        tree.write(slide_xml_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     # TODO: rebuild
     def change_doc_props(self):
@@ -77,16 +90,25 @@ class CopyPptx:
 
         namespaces = self.get_name_spaces_by_filepath(root_pptx_xml)
 
-        num = root.find('.//Slides', namespaces=namespaces)
+        slides = root.find('.//Slides', namespaces=namespaces)
+        notes = root.find('.//Notes', namespaces=namespaces)
         current_slides_count = len(self.slides_to_copy)
-        num.text = str(current_slides_count)
+        slides.text = str(current_slides_count)
+        notes.text = str(current_slides_count)
         relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)
         i = 0
+        tag = None
+        parent = None
+        pprint(namespaces
+               )
         for rel in relationship_elements:
             if "PowerPoint" in rel.text:
-                if i > current_slides_count:
+                    tag = rel
+                    parent = rel.getparent()
                     self.delete_child(rel)
-                i += 1
+        for i in range(len(self.slides_to_copy)):
+            a = etree.SubElement(parent, "{" + namespaces['vt'] + "}lpstr")
+            a.text = "Презентация PowerPoint"
         tree.write(root_pptx_xml)
 
     def change_root_context_type(self):
@@ -229,7 +251,7 @@ class CopyPptx:
             new_chart_path = os.path.dirname(chart_path_to_embedding) + '/temp'
 
             new_name = CopyPptx.get_embedding_name(chart_path_to_embedding, embedding_index)
-            print(new_name)
+
             CopyPptx.rename_and_move_file(chart_path_to_embedding,
                                           new_name, new_chart_path)
 
@@ -391,7 +413,7 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [22, 23, 22, 23, 26, 26, 12])
+                         [1, 2, 3])
 
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
