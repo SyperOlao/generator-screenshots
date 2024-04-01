@@ -30,11 +30,14 @@ def copy_pptx():
     with zipfile.ZipFile(f"{script_location}/win.pptx", 'r') as source_zip:
         source_zip.extractall(source_folder_win)
     copy_slides(path_to_source, path_to_new,
-                [22, 23, 22, 23, 26, 26, 12, 12, 16, 17, 22, 23, 18, 16, 17, 22, 23, 16, 17, 16, 17, 32, 16, 17, 18, 18,
-                 22, 23, 26, 26, 18, 16, 17, 18, 9, 16, 17, 16, 17, 22, 23, 16, 17, 18, 16, 17, 9, 16, 17, 18, 22, 23,
-                 18, 9, 9, 18, 16, 17, 22, 23, 16, 17, 26, 16, 17, 18, 16, 17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
-                 17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26])
-
+                [1, 2, 3])
+    # copy_slides(path_to_source, path_to_new,
+    #             [22, 23, 22, 23, 26, 26, 12, 12, 16, 17, 22, 23, 18, 16, 17, 22, 23, 16, 17, 16, 17, 32, 16, 17, 18, 18,
+    #              22, 23, 26, 26, 18, 16, 17, 18, 9, 16, 17, 16, 17, 22, 23, 16, 17, 18, 16, 17, 9, 16, 17, 18, 22, 23,
+    #              18, 9, 9, 18, 16, 17, 22, 23, 16, 17, 26, 16, 17, 18, 16, 17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
+    #              17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26])
+    # copy_slides(path_to_source, path_to_new,
+    #             [1])
 
 def copy_slides(source_pptx, target_pptx, slides_to_copy):
     source_folder = f"{script_location}/source_pptx_extracted"
