@@ -169,28 +169,6 @@ class CopyPptx:
 
     def _change_rels_file(self, slides_path, new_index):
         slide_xml_path_new = self._change_file_index_rels(slides_path, new_index)
-        tree = etree.parse(slide_xml_path_new)
-        root = tree.getroot()
-        namespaces = CopyPptx.get_name_spaces_by_filepath(slide_xml_path_new)
-
-        relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
-
-        for rel in relationship_elements:
-            pattern = r'../slides/slide(\d+)\.xml'
-            r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
-
-            if r_num != new_index \
-                    and r_num is not None:
-                rel.set('Target', f'../slides/slide{new_index}.xml')
-
-        for rel in relationship_elements:
-            pattern = r'../notesSlides/notesSlide(\d+)\.xml'
-            r_num = CopyPptx.extract_slide_numbers(rel.get('Target'), pattern)
-            if r_num != new_index \
-                    and r_num is not None:
-                rel.set('Target', f'../notesSlides/notesSlide{new_index}.xml')
-
-        tree.write(slide_xml_path_new, pretty_print=False, xml_declaration=True, encoding='utf-8')
         self._deep_change_target_links_rels(slide_xml_path_new)
 
     def _deep_change_target_links_rels(self, slide_xml_path_new):
@@ -251,10 +229,13 @@ class CopyPptx:
             new_chart_path = os.path.dirname(chart_path_to_embedding) + '/temp'
 
             new_name = CopyPptx.get_embedding_name(chart_path_to_embedding, embedding_index)
+            print(new_name)
             CopyPptx.rename_and_move_file(chart_path_to_embedding,
                                           new_name, new_chart_path)
 
-            rel.set('Target', new_name)
+            rel.set('Target',  f'../embeddings/{new_name}')
+
+        tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     @staticmethod
     def get_embedding_name(chart_path_to_embedding, embedding_index):
@@ -339,7 +320,7 @@ class CopyPptx:
         new_path = new_directory + "/" + new_name
         CopyPptx.create_a_dir(new_directory)
 
-        shutil.move(old_path, new_path)
+        shutil.copy2(old_path, new_path)
         logging.info(f"File has been renamed and moved: {old_path} -> {new_path}")
 
     @staticmethod
@@ -409,21 +390,21 @@ def main():
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
-
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [1, 2, 3])
+                         [22, 23, 22, 23, 26, 26, 12])
+
+    # pptx_copy = CopyPptx(path_to_source, path_to_new,
+    #                      [22, 23, 22, 23, 26, 26, 12,
+    #                       12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
+    #                       16, 17, 16, 17, 32, 16, 17, 18, 18, 22,
+    #                       23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
+    #                       16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
+    #                       16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
+    #                       17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
+    #                       17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
+    #                       17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26])
 
     pptx_copy.copy_slides()
 
 
 main()
-
-# [22, 23, 22, 23, 26, 26, 12,
-#  12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
-#  16, 17, 16, 17, 32, 16, 17, 18, 18, 22,
-#  23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
-#  16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
-#  16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
-#  17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
-#  17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
-#  17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26]
