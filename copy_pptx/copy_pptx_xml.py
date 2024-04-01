@@ -193,7 +193,6 @@ class CopyPptx:
         tree.write(slide_xml_path_new, pretty_print=False, xml_declaration=True, encoding='utf-8')
         self._deep_change_target_links_rels(slide_xml_path_new)
 
-    # ПОЧЕМУ-ТО НЕ СОХРАНЯЕТСЯ
     def _deep_change_target_links_rels(self, slide_xml_path_new):
         tree = etree.parse(slide_xml_path_new)
         root = tree.getroot()
@@ -216,7 +215,6 @@ class CopyPptx:
                         and r_num is not None:
                     rel.set('Target', f'../notesSlides/notesSlide{index}.xml')
                 self._change_notes_slides(path_to_lib, index)
-        print(slide_xml_path_new)
         tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def _change_notes_slides(self, path_to_lib, index):
@@ -249,19 +247,25 @@ class CopyPptx:
                 continue
             embedding_index = str(self.add_target_indexes(chart_target_type))
 
-            chart_path_to_lib = chart_target.replace('..', self.source_folder + '/ppt')
-            new_chart_path = os.path.dirname(chart_path_to_lib) + '/temp'
+            chart_path_to_embedding = chart_target.replace('..', self.source_folder + '/ppt')
+            new_chart_path = os.path.dirname(chart_path_to_embedding) + '/temp'
 
-            new_name = str(CopyPptx.replace_number(chart_path_to_lib.split('/')[-1],
-                                                   embedding_index))
-
-            if new_name is None:
-                new_name = str(chart_path_to_lib.split('/')[-1]).join('')
-
-            CopyPptx.rename_and_move_file(chart_path_to_lib,
+            new_name = CopyPptx.get_embedding_name(chart_path_to_embedding, embedding_index)
+            CopyPptx.rename_and_move_file(chart_path_to_embedding,
                                           new_name, new_chart_path)
 
             rel.set('Target', new_name)
+
+    @staticmethod
+    def get_embedding_name(chart_path_to_embedding, embedding_index):
+
+        if embedding_index == '1':
+            return re.sub(r'\d+', '', chart_path_to_embedding.split('/')[-1])
+        new_name = str(CopyPptx.replace_number(chart_path_to_embedding.split('/')[-1],
+                                               str(int(embedding_index) - 1)))
+        if new_name is None:
+            return str(chart_path_to_embedding.split('/')[-1]).join('')
+        return new_name
 
     def _copy_all_files(self, source_zip, target_zip):
         """
@@ -391,13 +395,13 @@ class CopyPptx:
 
         CopyPptx.delete_files_from_folder(slides_path, 'slide*')
         CopyPptx.delete_files_from_folder(slides_path_note, 'notesSlide*')
-        # CopyPptx.delete_files_from_folder(slides_path_charts, 'chart*')
-        # CopyPptx.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
+        CopyPptx.delete_files_from_folder(slides_path_charts, 'chart*')
+        CopyPptx.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
 
         CopyPptx.move_all_files(slides_path)
         CopyPptx.move_all_files(slides_path_note)
-        # CopyPptx.move_all_files(slides_path_charts)
-        # CopyPptx.move_all_files(slides_path_embeddings)
+        CopyPptx.move_all_files(slides_path_charts)
+        CopyPptx.move_all_files(slides_path_embeddings)
 
 
 def main():
