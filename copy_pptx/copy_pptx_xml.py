@@ -1,5 +1,4 @@
 import logging
-import string
 from io import StringIO
 import random
 
@@ -37,6 +36,7 @@ class CopyPptx:
     source_folder = f"{script_location}/source_pptx_extracted"
     target_indexes = dict()
     repeated_indexes = dict()
+    styles = []
 
     def __init__(self, path_to_source, path_to_new, slides_to_copy):
         self.path_to_source = path_to_source
@@ -46,6 +46,7 @@ class CopyPptx:
         self.get_repeated_indexes(slides_to_copy)
 
     def copy_slides(self):
+        shutil.rmtree(self.source_folder)
         os.makedirs(self.source_folder, exist_ok=True)
 
         with zipfile.ZipFile(self.path_to_source, 'r') as source_zip:
@@ -56,7 +57,7 @@ class CopyPptx:
 
             self._copy_all_files(source_zip, target_zip)
 
-        # shutil.rmtree(source_folder)
+        # shutil.rmtree(self.source_folder)
 
     def _working_with_xml(self):
 
@@ -67,7 +68,7 @@ class CopyPptx:
         i = 0
         for slide in self.slides_to_copy:
             i += 1
-            self.change_slide_id(slides_path, slide)
+            self.change_slide_id(slides_path + '/slide', slide)
             self._change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i, slide)
 
@@ -75,7 +76,7 @@ class CopyPptx:
         self.delete_and_move_files(slides_path)
 
     def change_slide_id(self, slides_path, old_index):
-        slide_xml_path = f"{slides_path}/slide{old_index}.xml"
+        slide_xml_path = f"{slides_path}{old_index}.xml"
         tree = etree.parse(slide_xml_path)
         root = tree.getroot()
         namespaces = self.get_name_spaces_by_filepath(slide_xml_path)
@@ -121,8 +122,8 @@ class CopyPptx:
         relations = None
         for rel in relationship_elements:
             target_type = str(rel.get('ContentType')).split('.')[-1].split('+')[0]
+            content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
             if target_type == 'slide' or target_type == 'chart' or target_type == 'notesSlide':
-                content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
                 relations = rel.getparent()
                 CopyPptx.delete_child(rel)
         for i in range(len(self.slides_to_copy)):
@@ -142,8 +143,28 @@ class CopyPptx:
                                                                          str(i + 1)),
                                      "ContentType": f"{content_type[target_type]['ct']}"
                                  })
+        for elem in self.styles:
+            type = CopyPptx.extract_before_first_number(elem)
+            ct = content_type["chartstyle"]['ct']
+
+            if type == 'colors':
+                ct = content_type["chartcolorstyle"]['ct']
+
+            etree.SubElement(relations, "Override",
+                             {
+                                 "PartName": f"/ppt/charts/{elem}",
+                                 "ContentType": ct
+                             })
 
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+    @staticmethod
+    def extract_before_first_number(s):
+        match = re.search(r'^([^\d]*)', s)
+        if match:
+            return match.group(1)
+        else:
+            return s
 
     def change_root_pptx_xml_rels(self):
         root_pptx_xml = f"{self.source_folder}/ppt/_rels/presentation.xml.rels"
@@ -197,6 +218,7 @@ class CopyPptx:
         root = tree.getroot()
         namespaces = CopyPptx.get_name_spaces_by_filepath(slide_xml_path_new)
         relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
+        notes_slides_path = f"{self.source_folder}/ppt/notesSlides/notesSlide"
         if old_index in self.repeated_indexes:
             self.repeated_indexes[old_index] += 1
         for rel in relationship_elements:
@@ -214,6 +236,7 @@ class CopyPptx:
                 if r_num != index \
                         and r_num is not None:
                     rel.set('Target', f'../notesSlides/notesSlide{index}.xml')
+                self.change_slide_id(notes_slides_path, old_index)
                 self._change_notes_slides(path_to_lib, index)
         tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
@@ -251,19 +274,21 @@ class CopyPptx:
         root = tree.getroot()
         namespaces = CopyPptx.get_name_spaces_by_filepath(path_to_chart)
         # TODO: THINK ABOUT ID
-        unique_ids = root.findall('.//c:uniqueId', namespaces=namespaces)
-        hex = CopyPptx.generate_hex_string()
+        try:
+            unique_ids = root.findall('.//c16:uniqueId', namespaces=namespaces)
+            hex = CopyPptx.generate_hex_string()
+            print(unique_ids)
+            # {00000003-1A3C-46CD-A049-AE5FE0497CE7}
+            # {00000001-EB99-668B-87F1-6F6B
+            # 920M-B6CJ-OC8Y-0B0NXSWHZRJV
+            for id in unique_ids:
+                curr_id = str(id.get('val')).split('-')[0][1::]
 
-        # {00000003-1A3C-46CD-A049-AE5FE0497CE7}
-        # {00000001-EB99-668B-87F1-6F6B
-        # 920M-B6CJ-OC8Y-0B0NXSWHZRJV
-        for id in unique_ids:
-            curr_id = str(id.get('val')).split('-')[0][1::]
-
-            id.set('val', "{" + f"{curr_id}-{hex}" + "}")
-        # c16:uniqueId
-        tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
-
+                id.set('val', "{" + f"{curr_id}-{hex}" + "}")
+            # c16:uniqueId
+            tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
+        except Exception as err:
+            logging.warning(err)
     def _change_chart_rels(self, path_to_chart, index, old_index):
         self._change_chart_id(path_to_chart)
         CopyPptx._change_file_index(path_to_chart, index)
@@ -277,18 +302,6 @@ class CopyPptx:
         for rel in relationship_elements:
             chart_target = str(rel.get('Target'))
             chart_target_type = str(rel.get('Type')).split('/')[-1]
-            # if chart_target_type != 'package':
-            #     continue
-            # embedding_index = str(self.add_target_indexes(chart_target_type))
-            #
-            # chart_path_to_embedding = chart_target.replace('..', self.source_folder + '/ppt')
-            # new_chart_path = os.path.dirname(chart_path_to_embedding) + '/temp'
-            # new_name = CopyPptx.get_embedding_name(chart_path_to_embedding, embedding_index)
-            #
-            # CopyPptx.rename_and_move_file(chart_path_to_embedding,
-            #                               new_name, new_chart_path)
-            #
-            # rel.set('Target', f'../embeddings/{new_name}')
             if chart_target_type == 'package':
                 self.change_package(rel, chart_target_type, chart_target)
             if chart_target_type == 'chartStyle':
@@ -300,13 +313,14 @@ class CopyPptx:
 
     def change_chart_style(self, rel, chart_target, pattern, old_index):
 
-        if self.repeated_indexes[old_index] < 2:
+        if old_index in self.repeated_indexes and self.repeated_indexes[old_index] < 2:
             return
 
         chart_path_to_embedding = self.source_folder + '/ppt/charts'
         index = CopyPptx.get_last_index(chart_path_to_embedding, pattern)
-        new_chart_style = CopyPptx.replace_number(chart_target, str(index+1))
-        CopyPptx.rename_and_move_file(chart_path_to_embedding+'/'+chart_target,
+        new_chart_style = CopyPptx.replace_number(chart_target, str(index + 1))
+        self.styles.append(new_chart_style)
+        CopyPptx.rename_and_move_file(chart_path_to_embedding + '/' + chart_target,
                                       new_chart_style, chart_path_to_embedding)
         rel.set('Target', new_chart_style)
 
@@ -503,13 +517,20 @@ def main():
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
+
+
+    #slides_to_copy=random.sample(range(1, 32), 31)
+    slides_to_copy=[28, 26, 30, 2, 9, 29, 14, 12, 15, 13, 6, 31, 27, 7]
+    for i in range(len(slides_to_copy)):
+        print("i: ", i+1, " ", slides_to_copy[i],)
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [2, 2, 2, ])
+                         slides_to_copy)
     sr = f"{script_location}/res_2"
     os.makedirs(sr, exist_ok=True)
     with zipfile.ZipFile(path_to_temp, 'r') as source_zip:
         source_zip.extractall(sr)
 
+# [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
     #                       12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
