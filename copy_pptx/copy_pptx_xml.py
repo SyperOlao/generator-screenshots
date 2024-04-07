@@ -221,6 +221,7 @@ class CopyPptx:
         notes_slides_path = f"{self.source_folder}/ppt/notesSlides/notesSlide"
         if old_index in self.repeated_indexes:
             self.repeated_indexes[old_index] += 1
+
         for rel in relationship_elements:
             target = str(rel.get('Target'))
             target_type = str(rel.get('Type')).split('/')[-1]
@@ -257,15 +258,10 @@ class CopyPptx:
 
     @staticmethod
     def generate_hex_string():
-
         group1 = ''.join(random.choices('0123456789ABCDEF', k=4))
-
         group2 = ''.join(random.choices('0123456789ABCDEF', k=4))
-
         group3 = ''.join(random.choices('0123456789ABCDEF', k=4))
-
         group4 = ''.join(random.choices('0123456789ABCDEF', k=12))
-
         formatted_hex_string = f"{group1}-{group2}-{group3}-{group4}"
         return formatted_hex_string
 
@@ -277,7 +273,6 @@ class CopyPptx:
         try:
             unique_ids = root.findall('.//c16:uniqueId', namespaces=namespaces)
             hex = CopyPptx.generate_hex_string()
-            print(unique_ids)
             # {00000003-1A3C-46CD-A049-AE5FE0497CE7}
             # {00000001-EB99-668B-87F1-6F6B
             # 920M-B6CJ-OC8Y-0B0NXSWHZRJV
@@ -289,8 +284,10 @@ class CopyPptx:
             tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
         except Exception as err:
             logging.warning(err)
+
     def _change_chart_rels(self, path_to_chart, index, old_index):
         self._change_chart_id(path_to_chart)
+
         CopyPptx._change_file_index(path_to_chart, index)
         chart_path_rels = CopyPptx._change_file_index_rels(path_to_chart, index)
 
@@ -312,12 +309,17 @@ class CopyPptx:
         tree.write(chart_path_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_chart_style(self, rel, chart_target, pattern, old_index):
+        if old_index not in self.repeated_indexes:
+            return
 
         if old_index in self.repeated_indexes and self.repeated_indexes[old_index] < 2:
             return
+        if old_index in self.repeated_indexes:
+            print("not return", old_index, " value: ", self.repeated_indexes[old_index])
 
         chart_path_to_embedding = self.source_folder + '/ppt/charts'
         index = CopyPptx.get_last_index(chart_path_to_embedding, pattern)
+        print(index)
         new_chart_style = CopyPptx.replace_number(chart_target, str(index + 1))
         self.styles.append(new_chart_style)
         CopyPptx.rename_and_move_file(chart_path_to_embedding + '/' + chart_target,
@@ -508,7 +510,7 @@ class CopyPptx:
         CopyPptx.move_all_files(slides_path)
         CopyPptx.move_all_files(slides_path_note)
         CopyPptx.move_all_files(slides_path_charts)
-        CopyPptx.move_all_files(slides_path_embeddings)
+        CopyPptx.move_files(slides_path_embeddings)
 
 
 def main():
@@ -518,11 +520,10 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
 
-
-    #slides_to_copy=random.sample(range(1, 32), 31)
-    slides_to_copy=[28, 26, 30, 2, 9, 29, 14, 12, 15, 13, 6, 31, 27, 7]
+    # slides_to_copy=random.sample(range(1, 32), 31)
+    slides_to_copy = [2, 2, 2, 28, 26, 30, 2, 9, 29, 14, 12, 15, 13, 6, 31, 27, 7, 28, 19]
     for i in range(len(slides_to_copy)):
-        print("i: ", i+1, " ", slides_to_copy[i],)
+        print("i: ", i + 1, " ", slides_to_copy[i])
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
     sr = f"{script_location}/res_2"
@@ -530,7 +531,7 @@ def main():
     with zipfile.ZipFile(path_to_temp, 'r') as source_zip:
         source_zip.extractall(sr)
 
-# [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
+    # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
     #                       12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
