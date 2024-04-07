@@ -55,7 +55,7 @@ class CopyPptx:
         with (zipfile.ZipFile(self.path_to_new, "w") as target_zip):
             self._working_with_xml()
 
-            self._copy_all_files(source_zip, target_zip)
+            self._copy_all_files(target_zip)
 
         # shutil.rmtree(self.source_folder)
 
@@ -126,6 +126,20 @@ class CopyPptx:
             if target_type == 'slide' or target_type == 'chart' or target_type == 'notesSlide':
                 relations = rel.getparent()
                 CopyPptx.delete_child(rel)
+
+        for elem in self.styles:
+            type = CopyPptx.extract_before_first_number(elem)
+            ct = content_type["chartstyle"]['ct']
+
+            if type == 'colors':
+                ct = content_type["chartcolorstyle"]['ct']
+
+            etree.SubElement(relations, "Override",
+                             {
+                                 "PartName": f"/ppt/charts/{elem}",
+                                 "ContentType": ct
+                             })
+
         for i in range(len(self.slides_to_copy)):
             etree.SubElement(relations, "Override",
                              {
@@ -143,18 +157,6 @@ class CopyPptx:
                                                                          str(i + 1)),
                                      "ContentType": f"{content_type[target_type]['ct']}"
                                  })
-        for elem in self.styles:
-            type = CopyPptx.extract_before_first_number(elem)
-            ct = content_type["chartstyle"]['ct']
-
-            if type == 'colors':
-                ct = content_type["chartcolorstyle"]['ct']
-
-            etree.SubElement(relations, "Override",
-                             {
-                                 "PartName": f"/ppt/charts/{elem}",
-                                 "ContentType": ct
-                             })
 
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
@@ -225,10 +227,11 @@ class CopyPptx:
         for rel in relationship_elements:
             target = str(rel.get('Target'))
             target_type = str(rel.get('Type')).split('/')[-1]
-            path_to_lib = target.replace('..', self.source_folder + '/ppt')
+            path_to_rel = target.replace('..', self.source_folder + '/ppt')
             index = self.add_target_indexes(target_type)
             if target_type == 'chart':
-                self._change_chart_rels(path_to_lib, index, old_index)
+                self._change_chart_id(path_to_rel)
+                self._change_chart_rels(path_to_rel, index, old_index)
                 rel.set('Target', f'../charts/chart{index}.xml')
 
             if target_type == 'notesSlide':
@@ -238,10 +241,11 @@ class CopyPptx:
                         and r_num is not None:
                     rel.set('Target', f'../notesSlides/notesSlide{index}.xml')
                 self.change_slide_id(notes_slides_path, old_index)
-                self._change_notes_slides(path_to_lib, index)
+                self._change_notes_slides(path_to_rel, index)
         tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    def _change_notes_slides(self, path_to_lib, index):
+    @staticmethod
+    def _change_notes_slides(path_to_lib, index):
         CopyPptx._change_file_index(path_to_lib, index)
         notes_slides_rels = CopyPptx._change_file_index_rels(path_to_lib, index)
         tree = etree.parse(notes_slides_rels)
@@ -265,7 +269,8 @@ class CopyPptx:
         formatted_hex_string = f"{group1}-{group2}-{group3}-{group4}"
         return formatted_hex_string
 
-    def _change_chart_id(self, path_to_chart):
+    @staticmethod
+    def _change_chart_id(path_to_chart):
         tree = etree.parse(path_to_chart)
         root = tree.getroot()
         namespaces = CopyPptx.get_name_spaces_by_filepath(path_to_chart)
@@ -286,8 +291,6 @@ class CopyPptx:
             logging.warning(err)
 
     def _change_chart_rels(self, path_to_chart, index, old_index):
-        self._change_chart_id(path_to_chart)
-
         CopyPptx._change_file_index(path_to_chart, index)
         chart_path_rels = CopyPptx._change_file_index_rels(path_to_chart, index)
 
@@ -309,21 +312,22 @@ class CopyPptx:
         tree.write(chart_path_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_chart_style(self, rel, chart_target, pattern, old_index):
-        if old_index not in self.repeated_indexes:
-            return
 
-        if old_index in self.repeated_indexes and self.repeated_indexes[old_index] < 2:
+        if old_index not in self.repeated_indexes or self.repeated_indexes[old_index] < 2:
             return
-        if old_index in self.repeated_indexes:
-            print("not return", old_index, " value: ", self.repeated_indexes[old_index])
 
         chart_path_to_embedding = self.source_folder + '/ppt/charts'
         index = CopyPptx.get_last_index(chart_path_to_embedding, pattern)
-        print(index)
+
         new_chart_style = CopyPptx.replace_number(chart_target, str(index + 1))
         self.styles.append(new_chart_style)
-        CopyPptx.rename_and_move_file(chart_path_to_embedding + '/' + chart_target,
-                                      new_chart_style, chart_path_to_embedding)
+
+        old_path = chart_path_to_embedding + '/' + chart_target
+        new_path = chart_path_to_embedding + '/' + new_chart_style
+        shutil.copy2(old_path, new_path)
+
+        # print("old_path", old_path)
+        # print("new_path", new_path)
         rel.set('Target', new_chart_style)
 
     def change_package(self, rel, chart_target_type, chart_target):
@@ -355,27 +359,35 @@ class CopyPptx:
 
     @staticmethod
     def get_embedding_name(chart_path_to_embedding, embedding_index):
-
+        excel_name = chart_path_to_embedding.split('/')[-1]
         if embedding_index == '1':
-            return re.sub(r'\d+', '', chart_path_to_embedding.split('/')[-1])
-        new_name = str(CopyPptx.replace_number(chart_path_to_embedding.split('/')[-1],
-                                               str(int(embedding_index) - 1)))
+            return re.sub(r'\d+', '', excel_name)
+
+        if re.search(r'\d', excel_name):
+            new_name = str(CopyPptx.replace_number(excel_name,
+                                                   str(int(embedding_index) - 1)))
+        else:
+            new_name = excel_name.split('.')[0] + str(int(embedding_index) - 1) + '.xlsx'
+
         if new_name is None:
-            return str(chart_path_to_embedding.split('/')[-1]).join('')
+            return str(excel_name).join('')
         return new_name
 
-    def _copy_all_files(self, source_zip, target_zip):
+    def _copy_all_files(self, target_zip):
         """
-        Adding common files for pptx from source_zip pptx
-        :param source_zip: source pptx opened like zip
+        Adding common files for pptx from source_folder
+        :param source_folder: source folder path
         :param target_zip: target pptx opened like zip
         :return: none
         """
-        for file in source_zip.namelist():
-            try:
-                target_zip.write(os.path.join(self.source_folder, file), file)
-            except OSError as e:
-                logging.warning(e)
+        for root, dirs, files in os.walk(self.source_folder):
+            for file in files:
+                source_path = os.path.join(root, file)
+                relative_path = os.path.relpath(source_path, self.source_folder)
+                try:
+                    target_zip.write(source_path, relative_path)
+                except OSError as e:
+                    logging.warning(e)
 
     def add_target_indexes(self, target_type):
         if target_type in self.target_indexes:
@@ -513,6 +525,32 @@ class CopyPptx:
         CopyPptx.move_files(slides_path_embeddings)
 
 
+def search_word_in_xml_folder(folder_path, word):
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.xml') or file.endswith('.rels'):
+                file_path = os.path.join(root, file)
+                try:
+                    with open(file_path, 'r') as f:
+                        line_number = 0
+                        for line in f:
+                            line_number += 1
+                            if word in line:
+                                print(f"Word '{word}' found in file: {file_path}, line {line_number}:")
+                                print(line.strip())
+                except Exception as e:
+                    print(f"Error reading file {file_path}: {e}")
+
+
+def search_word_in_xml_element(element, word):
+    if element.text and word in element.text:
+        return True
+    for child in element:
+        if search_word_in_xml_element(child, word):
+            return True
+    return False
+
+
 def main():
     new_presentation = Presentation()
     path_to_temp = f"{script_location}/res_2.pptx"
@@ -520,7 +558,7 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
 
-    # slides_to_copy=random.sample(range(1, 32), 31)
+    # slides_to_copy = random.sample(range(1, 32), 31)
     slides_to_copy = [2, 2, 2, 28, 26, 30, 2, 9, 29, 14, 12, 15, 13, 6, 31, 27, 7, 28, 19]
     for i in range(len(slides_to_copy)):
         print("i: ", i + 1, " ", slides_to_copy[i])
@@ -531,17 +569,22 @@ def main():
     with zipfile.ZipFile(path_to_temp, 'r') as source_zip:
         source_zip.extractall(sr)
 
+    folder_path = f"{script_location}/source_pptx_extracted"
+    word_to_search = 'style2'
+    search_word_in_xml_folder(folder_path, word_to_search)
+
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
     #                       12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
     #                       16, 17, 16, 17, 32, 16, 17, 18, 18, 22,
-    #                       23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
-    #                       16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
-    #                       16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
-    #                       17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
-    #                       17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
-    #                       17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26])
+    #                       # 23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
+    #                       # 16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
+    #                       # 16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
+    #                       # 17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
+    #                       # 17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
+    #                       # 17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26
+    #                       ])
 
     pptx_copy.copy_slides()
 
