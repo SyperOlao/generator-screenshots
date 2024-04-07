@@ -37,6 +37,7 @@ class CopyPptx:
     target_indexes = dict()
     repeated_indexes = dict()
     styles = []
+    font_ids = dict()
 
     def __init__(self, path_to_source, path_to_new, slides_to_copy):
         self.path_to_source = path_to_source
@@ -44,6 +45,8 @@ class CopyPptx:
         self.slides_to_copy = slides_to_copy
         self.len_master_id = 0
         self.get_repeated_indexes(slides_to_copy)
+        for i in range(len(slides_to_copy)):
+            print("i: ", i + 1, " ", slides_to_copy[i])
 
     def copy_slides(self):
         shutil.rmtree(self.source_folder)
@@ -122,6 +125,8 @@ class CopyPptx:
         relations = None
         for rel in relationship_elements:
             target_type = str(rel.get('ContentType')).split('.')[-1].split('+')[0]
+            if target_type == 'slideLayout':
+                continue
             content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
             if target_type == 'slide' or target_type == 'chart' or target_type == 'notesSlide':
                 relations = rel.getparent()
@@ -183,12 +188,25 @@ class CopyPptx:
                 relations = rel.getparent()
                 if relations is not None:
                     relations.remove(rel)
-
+        index = 0
         for i in range(len(self.slides_to_copy)):
+            index = self.len_master_id + i + 1
             etree.SubElement(relations, "Relationship",
-                             {'Id': f'rId{self.len_master_id + i + 1}',
+                             {'Id': f'rId{index}',
                               "Type": f'{all_type}',
                               "Target": f'slides/slide{i + 1}.xml'})
+
+        for rel in relationship_elements:
+            target_type = str(rel.get('Type')).split('/')[-1]
+            if target_type == 'notesMaster':
+                index += 1
+                rel.set("Id", f'rId{index}')
+                continue
+            if target_type != 'slide':
+                id = rel.get("Id")
+                if id in self.font_ids:
+                    rel.set("Id", f'{self.font_ids[id]}')
+
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_root_pptx_xml(self):
@@ -204,10 +222,26 @@ class CopyPptx:
             CopyPptx.delete_child(sldId)
         sldIdLst = root.find('ns0:sldIdLst', namespaces=namespaces)
         ids = generate_ids(len(self.slides_to_copy))
+        index = 0
         for i in range(len(self.slides_to_copy)):
+            index = i + 1 + self.len_master_id
             etree.SubElement(sldIdLst, "{" + namespaces['ns0'] + "}sldId",
                              {'id': f'{str(ids[i])}',
-                              "{" + namespaces['ns1'] + "}id": f'rId{i + 1 + self.len_master_id}'})
+                              "{" + namespaces['ns1'] + "}id": f'rId{index}'})
+
+        notes_master_id = root.xpath('//ns0:notesMasterId', namespaces=namespaces)
+        for elem in notes_master_id:
+            index += 1
+            elem.set("{" + namespaces['ns1'] + "}id", f'rId{index}')
+        name = "{" + namespaces['ns1'] + "}"
+        embedded_fonts = root.findall(f'.//ns0:embeddedFont', namespaces=namespaces)
+        for embedded_font in embedded_fonts:
+            for c in embedded_font.getchildren():
+                elem_id = c.get(f'{name}id')
+                if elem_id:
+                    index += 1
+                    self.font_ids[elem_id] = f'rId{index}'
+                    c.set(f"{name}id", f'rId{index}')
 
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
@@ -326,8 +360,6 @@ class CopyPptx:
         new_path = chart_path_to_embedding + '/' + new_chart_style
         shutil.copy2(old_path, new_path)
 
-        # print("old_path", old_path)
-        # print("new_path", new_path)
         rel.set('Target', new_chart_style)
 
     def change_package(self, rel, chart_target_type, chart_target):
@@ -376,12 +408,12 @@ class CopyPptx:
     def _copy_all_files(self, target_zip):
         """
         Adding common files for pptx from source_folder
-        :param source_folder: source folder path
         :param target_zip: target pptx opened like zip
         :return: none
         """
         for root, dirs, files in os.walk(self.source_folder):
             for file in files:
+                # print(file)
                 source_path = os.path.join(root, file)
                 relative_path = os.path.relpath(source_path, self.source_folder)
                 try:
@@ -536,10 +568,10 @@ def search_word_in_xml_folder(folder_path, word):
                         for line in f:
                             line_number += 1
                             if word in line:
-                                print(f"Word '{word}' found in file: {file_path}, line {line_number}:")
-                                print(line.strip())
+                                logging.info(f"Word '{word}' found in file: {file_path}, line {line_number}:")
+                                logging.info(line.strip())
                 except Exception as e:
-                    print(f"Error reading file {file_path}: {e}")
+                    logging.warning(f"Error reading file {file_path}: {e}")
 
 
 def search_word_in_xml_element(element, word):
@@ -557,11 +589,9 @@ def main():
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
-
+    # slides_to_copy = [1 for _ in range(44)]
     # slides_to_copy = random.sample(range(1, 32), 31)
-    slides_to_copy = [2, 2, 2, 28, 26, 30, 2, 9, 29, 14, 12, 15, 13, 6, 31, 27, 7, 28, 19]
-    for i in range(len(slides_to_copy)):
-        print("i: ", i + 1, " ", slides_to_copy[i])
+    slides_to_copy = [23, 18, 9,9,18]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
     sr = f"{script_location}/res_2"
@@ -569,21 +599,18 @@ def main():
     with zipfile.ZipFile(path_to_temp, 'r') as source_zip:
         source_zip.extractall(sr)
 
-    folder_path = f"{script_location}/source_pptx_extracted"
-    word_to_search = 'style2'
-    search_word_in_xml_folder(folder_path, word_to_search)
-
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
+
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12,
     #                       12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
     #                       16, 17, 16, 17, 32, 16, 17, 18, 18, 22,
-    #                       # 23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
-    #                       # 16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
-    #                       # 16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
-    #                       # 17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
-    #                       # 17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
-    #                       # 17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26
+    #                       23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
+    #                       16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
+    #                       16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
+    #                       17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
+    #                       17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
+    #                       17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26
     #                       ])
 
     pptx_copy.copy_slides()
