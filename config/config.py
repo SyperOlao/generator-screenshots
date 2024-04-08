@@ -12,7 +12,7 @@ if os.path.exists(dotenv_path):
 config_env = os.environ if not os.path.exists(dotenv_path) else dotenv_values(".env")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.info("Screen shots is starting up")
 

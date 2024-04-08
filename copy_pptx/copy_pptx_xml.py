@@ -1,6 +1,5 @@
-import logging
 import random
-
+from  config.config import logger
 from pptx import Presentation
 from pathlib import Path
 import zipfile
@@ -84,14 +83,16 @@ class CopyPptx:
         relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)
 
         parent = None
-
+        text = ""
         for rel in relationship_elements:
             if "PowerPoint" in rel.text:
+                text = rel.text
                 parent = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
+
         for i in range(len(self.slides_to_copy)):
             a = etree.SubElement(parent, "{" + namespaces['vt'] + "}lpstr")
-            a.text = "Презентация PowerPoint"
+            a.text = str(text)
         tree.write(root_pptx_xml)
 
     def change_root_context_type(self):
@@ -316,7 +317,7 @@ class CopyPptx:
                 try:
                     target_zip.write(source_path, relative_path)
                 except OSError as e:
-                    logging.warning(e)
+                    logger.warning(e)
 
     def add_target_indexes(self, target_type):
         if target_type in self.target_indexes:
