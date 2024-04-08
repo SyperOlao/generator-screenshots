@@ -1,4 +1,6 @@
 import random
+from pprint import pprint
+
 from config.config import logger
 from pptx import Presentation
 from pathlib import Path
@@ -17,6 +19,8 @@ class CopyPptx:
     repeated_indexes = dict()
     styles = []
     font_ids = dict()
+    num_of_words = 0
+    num_of_paragraphs = 0
 
     def __init__(self, path_to_source, path_to_new, slides_to_copy):
         self.path_to_source = path_to_source
@@ -46,16 +50,28 @@ class CopyPptx:
         slides_path = f"{self.source_folder}/ppt/slides"
         self.change_root_pptx_xml()
         self.change_root_pptx_xml_rels()
-        self.change_doc_props()
         i = 0
+
         for slide in self.slides_to_copy:
             i += 1
+            self.amount_of_words(f"{slides_path}/slide{slide}.xml")
             self.change_slide_id(slides_path + '/slide', slide)
             CopyPptxUtils.change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i, slide)
 
+        self.change_doc_props()
         self.change_root_context_type()
         self.delete_and_move_files(slides_path)
+
+    def amount_of_words(self, slides_path):
+        tree = etree.parse(slides_path)
+        root = tree.getroot()
+        namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slides_path)
+        a_t = root.findall('.//a:t', namespaces=namespaces)
+        for e in a_t:
+            self.num_of_words += len(e.text.split())
+
+        self.num_of_paragraphs += len(root.findall('.//a:p', namespaces=namespaces))
 
     def change_slide_id(self, slides_path, old_index):
         slide_xml_path = f"{slides_path}{old_index}.xml"
@@ -77,22 +93,37 @@ class CopyPptx:
 
         slides = root.find('.//Slides', namespaces=namespaces)
         notes = root.find('.//Notes', namespaces=namespaces)
+        paragraphs = root.find('.//Paragraphs', namespaces=namespaces)
+        words = root.find('.//Words', namespaces=namespaces)
         current_slides_count = len(self.slides_to_copy)
+        paragraphs.text = str(self.num_of_paragraphs)
+        words.text = str(self.num_of_words)
         slides.text = str(current_slides_count)
         notes.text = str(current_slides_count)
         relationship_elements = root.findall('.//vt:lpstr', namespaces=namespaces)
-
+        i4 = root.findall('.//vt:i4', namespaces=namespaces)
+        if i4 is not None:
+            i4[-1].text = str(current_slides_count)
         parent = None
         text = ""
+        num = 0
         for rel in relationship_elements:
             if "PowerPoint" in rel.text:
                 text = rel.text
                 parent = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
-
-        for i in range(len(self.slides_to_copy)):
+            else:
+                num += 1
+        amount_slices = len(self.slides_to_copy)
+        for i in range(amount_slices):
             a = etree.SubElement(parent, "{" + namespaces['vt'] + "}lpstr")
             a.text = str(text)
+        num += amount_slices
+
+        for vector in root.findall('.//vt:vector', namespaces=namespaces):
+            base_type = vector.get('baseType')
+            if base_type == 'lpstr':
+                vector.set('size', str(num))
         tree.write(root_pptx_xml)
 
     def change_root_context_type(self):
@@ -171,10 +202,8 @@ class CopyPptx:
 
         max_value = max(self.font_ids.values(), key=lambda x: int(x[3:]))
         index = int(str(CopyPptxUtils.get_number_from_str(max_value)[0]))
-        print(index)
         for rel in relationship_elements:
             target_type = str(rel.get('Type')).split('/')[-1]
-            print(target_type)
             if target_type == 'slide':
                 continue
 
@@ -211,7 +240,6 @@ class CopyPptx:
 
         name = "{" + namespaces['ns1'] + "}"
         notes_master_id = root.findall('.//ns0:notesMasterId', namespaces=namespaces)
-        print(notes_master_id)
         for elem in notes_master_id:
             elem_id = elem.get(f'{name}id')
             if elem_id:
@@ -379,25 +407,32 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
     # slides_to_copy = random.sample(range(1, 32), 31)
-    # slides_to_copy = [23, 18, 9, 9, 18]
-    # pptx_copy = CopyPptx(path_to_source, path_to_new,
-    #                      slides_to_copy)
+    slides_to_copy = [1]
+    pptx_copy = CopyPptx(path_to_source, path_to_new,
+                         slides_to_copy)
 
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
 
-    pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [22, 23, 22, 23, 26, 26, 12, 12, 16, 17,
-                          22, 23, 18, 16, 17, 22, 23, 16, 17, 16,
-                          17, 32, 16, 17, 18, 18, 22, 23, 26, 26,
-                          18, 16, 17, 18, 9, 16, 17, 16, 17, 22,
-                          23, 16, 17, 18, 16, 17, 9, 16, 17, 18,
-                          22, 23, 18, 9, 9, 18, 16, 17, 22, 23,
-                          16, 17, 26, 16, 17, 18, 16, 17, 18, 16,
-                          17, 16, 17, 16, 17, 18, 18, 16, 17, 16,
-                          17, 18, 16, 17, 16, 17, 16, 17, 26
-                          ])
+    # pptx_copy = CopyPptx(path_to_source, path_to_new,
+    #                      [22, 23, 22, 23, 26, 26, 12, 12, 16, 17,
+    #                       22, 23, 18, 16, 17, 22, 23, 16, 17, 16,
+    #                       17, 32, 16, 17, 18, 18, 22, 23, 26, 26,
+    #                       18, 16, 17, 18, 9, 16, 17, 16, 17, 22,
+    #                       23, 16, 17, 18, 16, 17, 9, 16, 17, 18,
+    #                       22, 23, 18, 9, 9, 18, 16, 17, 22, 23,
+    #                       16, 17, 26, 16, 17, 18, 16, 17, 18, 16,
+    #                       17, 16, 17, 16, 17, 18, 18, 16, 17, 16,
+    #                       17, 18, 16, 17, 16, 17, 16, 17, 26
+    #                       ])
 
     pptx_copy.copy_slides()
+
+    # source_folder = f"{script_location}/res_3"
+    # path_to_source = f"{script_location}/res_3.pptx"
+    # os.makedirs(source_folder, exist_ok=True)
+    #
+    # with zipfile.ZipFile(path_to_source, 'r') as source_zip:
+    #     source_zip.extractall(source_folder)
 
 
 main()
