@@ -1,5 +1,5 @@
 import random
-from  config.config import logger
+from config.config import logger
 from pptx import Presentation
 from pathlib import Path
 import zipfile
@@ -169,17 +169,24 @@ class CopyPptx:
                               "Type": f'{all_type}',
                               "Target": f'slides/slide{i + 1}.xml'})
 
+        max_value = max(self.font_ids.values(), key=lambda x: int(x[3:]))
+        index = int(str(CopyPptxUtils.get_number_from_str(max_value)[0]))
+        print(index)
         for rel in relationship_elements:
             target_type = str(rel.get('Type')).split('/')[-1]
-            if target_type == 'notesMaster':
-                index += 1
-                rel.set("Id", f'rId{index}')
+            print(target_type)
+            if target_type == 'slide':
                 continue
-            if target_type != 'slide':
+
+            if target_type == 'font' \
+                    or target_type == 'notesMaster' \
+                    or target_type == 'slideMaster':
                 id = rel.get("Id")
                 if id in self.font_ids:
                     rel.set("Id", f'{self.font_ids[id]}')
-
+            else:
+                index += 1
+                rel.set("Id", f'rId{index}')
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_root_pptx_xml(self):
@@ -202,11 +209,22 @@ class CopyPptx:
                              {'id': f'{str(ids[i])}',
                               "{" + namespaces['ns1'] + "}id": f'rId{index}'})
 
-        notes_master_id = root.xpath('//ns0:notesMasterId', namespaces=namespaces)
-        for elem in notes_master_id:
-            index += 1
-            elem.set("{" + namespaces['ns1'] + "}id", f'rId{index}')
         name = "{" + namespaces['ns1'] + "}"
+        notes_master_id = root.findall('.//ns0:notesMasterId', namespaces=namespaces)
+        print(notes_master_id)
+        for elem in notes_master_id:
+            elem_id = elem.get(f'{name}id')
+            if elem_id:
+                index += 1
+                self.font_ids[elem_id] = f'rId{index}'
+                elem.set(f"{name}id", f'rId{index}')
+
+        sld_master_id = root.findall('.//ns0:sldMasterId', namespaces=namespaces)
+        for elem in sld_master_id:
+            elem_id = elem.get(f'{name}id')
+            if elem_id:
+                self.font_ids[elem_id] = elem_id
+
         embedded_fonts = root.findall(f'.//ns0:embeddedFont', namespaces=namespaces)
         for embedded_font in embedded_fonts:
             for c in embedded_font.getchildren():
