@@ -70,7 +70,6 @@ class CopyPptx:
         a_t = root.findall('.//a:t', namespaces=namespaces)
         for e in a_t:
             self.num_of_words += len(e.text.split())
-
         self.num_of_paragraphs += len(root.findall('.//a:p', namespaces=namespaces))
 
     def change_slide_id(self, slides_path, old_index):
@@ -106,24 +105,24 @@ class CopyPptx:
             i4[-1].text = str(current_slides_count)
         parent = None
         text = ""
-        num = 0
+
         for rel in relationship_elements:
             if "PowerPoint" in rel.text:
                 text = rel.text
                 parent = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
-            else:
-                num += 1
+
         amount_slices = len(self.slides_to_copy)
         for i in range(amount_slices):
             a = etree.SubElement(parent, "{" + namespaces['vt'] + "}lpstr")
             a.text = str(text)
-        num += amount_slices
 
         for vector in root.findall('.//vt:vector', namespaces=namespaces):
             base_type = vector.get('baseType')
             if base_type == 'lpstr':
-                vector.set('size', str(num))
+                z = vector.getchildren()
+                vector.set('size', str(len(z)))
+
         tree.write(root_pptx_xml)
 
     def change_root_context_type(self):
@@ -192,7 +191,6 @@ class CopyPptx:
                 relations = rel.getparent()
                 if relations is not None:
                     relations.remove(rel)
-        index = 0
         for i in range(len(self.slides_to_copy)):
             index = self.len_master_id + i + 1
             etree.SubElement(relations, "Relationship",
@@ -407,7 +405,7 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
     # slides_to_copy = random.sample(range(1, 32), 31)
-    slides_to_copy = [1]
+    slides_to_copy = [i + 1 for i in range(35)]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
 
