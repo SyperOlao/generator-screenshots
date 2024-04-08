@@ -357,32 +357,26 @@ class CopyPptx:
 
 def main():
     new_presentation = Presentation()
-    path_to_temp = f"{script_location}/res_2.pptx"
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
-    # slides_to_copy = [1 for _ in range(44)]
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [23, 18, 9, 9, 18]
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      slides_to_copy)
-    sr = f"{script_location}/res_2"
-    os.makedirs(sr, exist_ok=True)
-    with zipfile.ZipFile(path_to_temp, 'r') as source_zip:
-        source_zip.extractall(sr)
 
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
 
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [22, 23, 22, 23, 26, 26, 12,
-                          12, 16, 17, 22, 23, 18, 16, 17, 22, 23,
-                          16, 17, 16, 17, 32, 16, 17, 18, 18, 22,
-                          23, 26, 26, 18, 16, 17, 18, 9, 16, 17,
-                          16, 17, 22, 23, 16, 17, 18, 16, 17, 9,
-                          16, 17, 18, 22, 23, 18, 9, 9, 18, 16,
-                          17, 22, 23, 16, 17, 26, 16, 17, 18, 16,
-                          17, 18, 16, 17, 16, 17, 16, 17, 18, 18, 16,
-                          17, 16, 17, 18, 16, 17, 16, 17, 16, 17, 26
+                         [22, 23, 22, 23, 26, 26, 12, 12, 16, 17,
+                          22, 23, 18, 16, 17, 22, 23, 16, 17, 16,
+                          17, 32, 16, 17, 18, 18, 22, 23, 26, 26,
+                          18, 16, 17, 18, 9, 16, 17, 16, 17, 22,
+                          23, 16, 17, 18, 16, 17, 9, 16, 17, 18,
+                          22, 23, 18, 9, 9, 18, 16, 17, 22, 23,
+                          16, 17, 26, 16, 17, 18, 16, 17, 18, 16,
+                          17, 16, 17, 16, 17, 18, 18, 16, 17, 16,
+                          17, 18, 16, 17, 16, 17, 16, 17, 26
                           ])
 
     pptx_copy.copy_slides()
