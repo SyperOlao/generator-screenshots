@@ -135,26 +135,30 @@ class CopyPptx:
         relationship_elements = root.findall('.//Override', namespaces=namespaces)
         relations = None
         for rel in relationship_elements:
-            target_type = str(rel.get('ContentType')).split('.')[-1].split('+')[0]
+            target_type = str(str(rel.get('ContentType')).split('.')[-1].split('+')[0]).lower()
+            print(target_type)
+
             if target_type == 'slideLayout':
                 continue
+
             content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
-            if target_type == 'slide' or target_type == 'chart' or target_type == 'notesSlide':
+
+            if target_type in ['slide', 'chart', 'notesSlide', 'chartstyle', 'chartcolorstyle']:
                 relations = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
 
-        for elem in self.styles:
-            type = CopyPptxUtils.extract_before_first_number(elem)
-            ct = content_type["chartstyle"]['ct']
-
-            if type == 'colors':
-                ct = content_type["chartcolorstyle"]['ct']
-
-            etree.SubElement(relations, "Override",
-                             {
-                                 "PartName": f"/ppt/charts/{elem}",
-                                 "ContentType": ct
-                             })
+        # for elem in self.styles:
+        #     type = CopyPptxUtils.extract_before_first_number(elem)
+        #     ct = content_type["chartstyle"]['ct']
+        #
+        #     if type == 'colors':
+        #         ct = content_type["chartcolorstyle"]['ct']
+        #
+        #     etree.SubElement(relations, "Override",
+        #                      {
+        #                          "PartName": f"/ppt/charts/{elem}",
+        #                          "ContentType": ct
+        #                      })
 
         for i in range(len(self.slides_to_copy)):
             etree.SubElement(relations, "Override",
@@ -162,16 +166,23 @@ class CopyPptx:
                                  "PartName": CopyPptxUtils.replace_number(f"{content_type['slide']['pt']}",
                                                                           str(i + 1)),
                                  "ContentType": f"{content_type['slide']['ct']}"
-                             })
+                           })
+        pprint(content_type)
+
         for target_type in self.target_indexes:
-            if target_type not in content_type:
+            # print(target_type)
+            if target_type.lower() not in content_type:
+                print("NOT", target_type)
                 continue
+
+            print(self.target_indexes.keys())
             for i in range(self.target_indexes[target_type]):
+
                 etree.SubElement(relations, "Override",
                                  {
-                                     "PartName": CopyPptxUtils.replace_number(f"{content_type[target_type]['pt']}",
+                                     "PartName": CopyPptxUtils.replace_number(f"{content_type[target_type.lower()]['pt']}",
                                                                               str(i + 1)),
-                                     "ContentType": f"{content_type[target_type]['ct']}"
+                                     "ContentType": f"{content_type[target_type.lower()]['ct']}"
                                  })
 
         tree.write(root_pptx_xml, pretty_print=True, xml_declaration=True, encoding='utf-8')
@@ -310,28 +321,19 @@ class CopyPptx:
             if chart_target_type == 'package':
                 self.change_package(rel, chart_target_type, chart_target)
             if chart_target_type == 'chartStyle':
-                self.change_chart_style(rel, chart_target, 'style*', old_index)
+                self.change_chart_style(rel, chart_target_type, chart_target, 'style*', old_index)
             if chart_target_type == 'chartColorStyle':
-                self.change_chart_style(rel, chart_target, 'colors*', old_index)
+                self.change_chart_style(rel, chart_target_type, chart_target, 'colors*', old_index)
 
         tree.write(chart_path_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-    def change_chart_style(self, rel, chart_target, pattern, old_index):
-
-        if old_index not in self.repeated_indexes or self.repeated_indexes[old_index] < 2:
-            return
+    def change_chart_style(self, rel, chart_target_type, chart_target, pattern, old_index):
 
         chart_path_to_embedding = self.source_folder + '/ppt/charts'
-        index = CopyPptxUtils.get_last_index(chart_path_to_embedding, pattern)
+        embedding_index = str(self.add_target_indexes(chart_target_type))
 
-        new_chart_style = CopyPptxUtils.replace_number(chart_target, str(index + 1))
-        self.styles.append(new_chart_style)
-
-        old_path = chart_path_to_embedding + '/' + chart_target
-        new_path = chart_path_to_embedding + '/' + new_chart_style
-        shutil.copy2(old_path, new_path)
-
-        rel.set('Target', new_chart_style)
+        CopyPptxUtils.move_file(chart_path_to_embedding + '/' + chart_target, embedding_index)
+        rel.set('Target', CopyPptxUtils.replace_number(chart_target, embedding_index))
 
     def change_package(self, rel, chart_target_type, chart_target):
         embedding_index = str(self.add_target_indexes(chart_target_type))
@@ -391,6 +393,8 @@ class CopyPptx:
         CopyPptxUtils.delete_files_from_folder(slides_path, 'slide*')
         CopyPptxUtils.delete_files_from_folder(slides_path_note, 'notesSlide*')
         CopyPptxUtils.delete_files_from_folder(slides_path_charts, 'chart*')
+        CopyPptxUtils.delete_files_from_folder(slides_path_charts, 'colors*')
+        CopyPptxUtils.delete_files_from_folder(slides_path_charts, 'style*')
         CopyPptxUtils.delete_files_from_folder(slides_path_embeddings, 'Microsoft_Excel_Worksheet*')
 
         CopyPptxUtils.move_all_files(slides_path)
@@ -404,10 +408,12 @@ def main():
     path_to_new = f"{script_location}/res.pptx"
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
+    source_folder = f"{script_location}/source_pptx_extracted"
+    # CopyPptxUtils.search_word_in_xml_folder(source_folder, "Microsoft_Excel_Worksheet")
     # slides_to_copy = random.sample(range(1, 32), 31)
-    slides_to_copy = [i + 1 for i in range(35)]
+    # slides_to_copy = [i + 1 for i in range(35)]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         slides_to_copy)
+                         [1, 4, 2,2,  9])
 
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
 

@@ -146,6 +146,17 @@ class CopyPptxUtils:
         tree.write(temp_slides_path + "/" + new_file_number, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     @staticmethod
+    def move_file(file_path, new_index):
+        print(file_path, new_index)
+
+        temp_slides_path = file_path.rsplit('/', 1)[0] + "/temp"
+        CopyPptxUtils.create_a_dir(temp_slides_path)
+        new_file_number = re.sub(r'\d+', str(new_index), str(file_path.rsplit('/', 1)[1]))
+        new_file_path = f"{temp_slides_path}/{new_file_number}"
+        print(new_file_path)
+        shutil.copy2(file_path, new_file_path)
+
+    @staticmethod
     def rename_and_move_file(old_path: str, new_name: str, new_directory):
         if not os.path.isfile(old_path):
             logger.warning(f"File {old_path} is not found.")
@@ -154,7 +165,7 @@ class CopyPptxUtils:
         CopyPptxUtils.create_a_dir(new_directory)
 
         shutil.copy2(old_path, new_path)
-        logger.info(f"File has been renamed and moved: {old_path} -> {new_path}")
+        # logger.info(f"File has been renamed and moved: {old_path} -> {new_path}")
 
     @staticmethod
     def replace_number(source_str, new_index):
