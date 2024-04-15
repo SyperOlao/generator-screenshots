@@ -136,7 +136,6 @@ class CopyPptx:
         relations = None
         for rel in relationship_elements:
             target_type = str(str(rel.get('ContentType')).split('.')[-1].split('+')[0]).lower()
-            print(target_type)
 
             if target_type == 'slideLayout':
                 continue
@@ -147,41 +146,24 @@ class CopyPptx:
                 relations = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
 
-        # for elem in self.styles:
-        #     type = CopyPptxUtils.extract_before_first_number(elem)
-        #     ct = content_type["chartstyle"]['ct']
-        #
-        #     if type == 'colors':
-        #         ct = content_type["chartcolorstyle"]['ct']
-        #
-        #     etree.SubElement(relations, "Override",
-        #                      {
-        #                          "PartName": f"/ppt/charts/{elem}",
-        #                          "ContentType": ct
-        #                      })
-
         for i in range(len(self.slides_to_copy)):
             etree.SubElement(relations, "Override",
                              {
                                  "PartName": CopyPptxUtils.replace_number(f"{content_type['slide']['pt']}",
                                                                           str(i + 1)),
                                  "ContentType": f"{content_type['slide']['ct']}"
-                           })
-        pprint(content_type)
+                             })
 
         for target_type in self.target_indexes:
-            # print(target_type)
             if target_type.lower() not in content_type:
-                print("NOT", target_type)
                 continue
 
-            print(self.target_indexes.keys())
             for i in range(self.target_indexes[target_type]):
-
                 etree.SubElement(relations, "Override",
                                  {
-                                     "PartName": CopyPptxUtils.replace_number(f"{content_type[target_type.lower()]['pt']}",
-                                                                              str(i + 1)),
+                                     "PartName": CopyPptxUtils.replace_number(
+                                         f"{content_type[target_type.lower()]['pt']}",
+                                         str(i + 1)),
                                      "ContentType": f"{content_type[target_type.lower()]['ct']}"
                                  })
 
@@ -413,7 +395,7 @@ def main():
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [i + 1 for i in range(35)]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [1, 4, 2,2,  9])
+                         [1, 4, 2, 2, 9])
 
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
 
