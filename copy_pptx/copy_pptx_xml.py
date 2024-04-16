@@ -54,7 +54,7 @@ class CopyPptx:
 
         for slide in self.slides_to_copy:
             i += 1
-            self.amount_of_words(f"{slides_path}/slide{slide}.xml")
+            self.update_doc_props(f"{slides_path}/slide{slide}.xml")
             self.change_slide_id(slides_path + '/slide', slide)
             CopyPptxUtils.change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i, slide)
@@ -63,7 +63,7 @@ class CopyPptx:
         self.change_root_context_type()
         self.delete_and_move_files(slides_path)
 
-    def amount_of_words(self, slides_path):
+    def update_doc_props(self, slides_path):
         tree = etree.parse(slides_path)
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slides_path)
@@ -142,7 +142,7 @@ class CopyPptx:
 
             content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
 
-            if target_type in ['slide', 'chart', 'notesSlide', 'chartstyle', 'chartcolorstyle']:
+            if target_type in ['slide', 'chart', 'notesslide', 'chartstyle', 'chartcolorstyle']:
                 relations = rel.getparent()
                 CopyPptxUtils.delete_child(rel)
 
@@ -395,7 +395,7 @@ def main():
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [i + 1 for i in range(35)]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [1, 4, 2, 2, 9])
+                         [1])
 
     # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
 

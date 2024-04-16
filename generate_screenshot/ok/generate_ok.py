@@ -1,6 +1,6 @@
 from time import sleep
 from pyppeteer import launch
-from generate_screenshot.base_screensot import GenerateScreenshot
+from generate_screenshot.base_screenshot import GenerateScreenshot
 import asyncio
 
 

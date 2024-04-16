@@ -1,5 +1,5 @@
 from time import sleep
-from generate_screenshot.base_screensot import GenerateScreenshot
+from generate_screenshot.base_screenshot import GenerateScreenshot
 import asyncio
 from config.config import logger
 

@@ -1,4 +1,4 @@
-from generate_screenshot.base_screensot import GenerateScreenshot
+from generate_screenshot.base_screenshot import GenerateScreenshot
 from config.config import logger
 
 from time import sleep
