@@ -7,9 +7,18 @@ import xml.etree.ElementTree as ET
 from lxml import etree
 import shutil
 import random
+import zipfile
+
+from copy_pptx.search_dif_tools import dif_dir
 
 
 class CopyPptxUtils:
+    @staticmethod
+    def save_pptx_as_folder(path_to_pptx, folder_name):
+        os.makedirs(folder_name, exist_ok=True)
+        with zipfile.ZipFile(path_to_pptx, 'r') as source_zip:
+            source_zip.extractall(folder_name)
+
     @staticmethod
     def generate_ids(n):
         number = 3900
@@ -125,6 +134,7 @@ class CopyPptxUtils:
             return match.group(1)
         else:
             return s
+
     @staticmethod
     def change_file_index_rels(slides_path, new_index):
         slides_path_2 = slides_path.rsplit('/', 1)[0] + '/_rels'
@@ -193,7 +203,8 @@ class CopyPptxUtils:
     def move_files(source_folder):
         temp_folder = source_folder + "/temp"
         if not os.path.exists(temp_folder):
-            logger.warning(f"Source folder '{source_folder}' can not be find.")
+            pass
+            # logger.warning(f"Source folder '{source_folder}' can not be find.")
         else:
             for filename in os.listdir(temp_folder):
                 file_path = os.path.join(temp_folder, filename)
@@ -230,3 +241,23 @@ class CopyPptxUtils:
                     except Exception as e:
                         logger.warning(f"Error reading file {file_path}: {e}")
 
+    @staticmethod
+    def compare_dir(dir1, dir2):
+        for root, dirs, files in os.walk(dir1):
+            for file in files:
+                if file.endswith('.xml') or file.endswith('.rels'):
+                    file_path_dir1 = os.path.join(root, file)
+                    file_path_dir2 = os.path.join(str(root).replace(dir1, dir2), file)
+                    try:
+                        with open(file_path_dir2, "r") as file_2:
+                            pass
+                        tree1 = etree.parse(file_path_dir1)
+                        tree1.write(file_path_dir1, pretty_print=True, encoding='utf-8')
+                        tree2 = etree.parse(file_path_dir2)
+                        tree2.write(file_path_dir2, pretty_print=True, encoding='utf-8')
+                        try:
+                            dif_dir(file_path_dir1, file_path_dir2)
+                        except Exception as e:
+                            logger.warning(f"Error reading file: {e}")
+                    except FileNotFoundError:
+                        print(f"Файл {file_path_dir2} не существует.\n")

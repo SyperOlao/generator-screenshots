@@ -70,7 +70,9 @@ class CopyPptx:
         a_t = root.findall('.//a:t', namespaces=namespaces)
         for e in a_t:
             self.num_of_words += len(e.text.split())
+        self.num_of_words += 1
         self.num_of_paragraphs += len(root.findall('.//a:p', namespaces=namespaces))
+        self.num_of_paragraphs += 1
 
     def change_slide_id(self, slides_path, old_index):
         slide_xml_path = f"{slides_path}{old_index}.xml"
@@ -80,7 +82,9 @@ class CopyPptx:
         creation_id = root.find('.//p14:creationId', namespaces=namespaces)
         if creation_id is not None:
             creation_id.set('val', f'{random.sample(range(2000000000, 7000000000), 1)[0]}')
-
+        ex = root.find('.//p:extLst', namespaces=namespaces)
+        if ex is not None:
+            CopyPptxUtils.delete_child(ex)
         tree.write(slide_xml_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     def change_doc_props(self):
@@ -394,10 +398,9 @@ def main():
     # CopyPptxUtils.search_word_in_xml_folder(source_folder, "Microsoft_Excel_Worksheet")
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [i + 1 for i in range(35)]
+    slides_to_copy = [1]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
-                         [1])
-
-    # [23, 17, 28, 8, 26, 30, 22, 19, 2, 21, 9, 29, 14, 12, 15, 13, 5, 24, 10, 25, 18, 4, 11, 16, 20, 1, 6, 31, 27, 7, 3]
+                         slides_to_copy)
 
     # pptx_copy = CopyPptx(path_to_source, path_to_new,
     #                      [22, 23, 22, 23, 26, 26, 12, 12, 16, 17,
@@ -412,13 +415,8 @@ def main():
     #                       ])
 
     pptx_copy.copy_slides()
-
-    # source_folder = f"{script_location}/res_3"
-    # path_to_source = f"{script_location}/res_3.pptx"
-    # os.makedirs(source_folder, exist_ok=True)
-    #
-    # with zipfile.ZipFile(path_to_source, 'r') as source_zip:
-    #     source_zip.extractall(source_folder)
+    CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
 
 
-main()
+# main()
+CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_rep")
