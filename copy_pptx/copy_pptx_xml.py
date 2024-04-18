@@ -79,9 +79,11 @@ class CopyPptx:
         tree = etree.parse(slide_xml_path)
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slide_xml_path)
-        creation_id = root.find('.//p14:creationId', namespaces=namespaces)
-        if creation_id is not None:
-            creation_id.set('val', f'{random.sample(range(2000000000, 7000000000), 1)[0]}')
+
+        if 'p14' in namespaces:
+            creation_id = root.find('.//p14:creationId', namespaces=namespaces)
+            if creation_id is not None:
+                creation_id.set('val', f'{random.sample(range(2000000000, 7000000000), 1)[0]}')
         ex = root.find('.//p:extLst', namespaces=namespaces)
         if ex is not None:
             CopyPptxUtils.delete_child(ex)
@@ -141,7 +143,7 @@ class CopyPptx:
         for rel in relationship_elements:
             target_type = str(str(rel.get('ContentType')).split('.')[-1].split('+')[0]).lower()
 
-            if target_type == 'slideLayout':
+            if target_type == 'slidelayout':
                 continue
 
             content_type[target_type] = {'ct': str(rel.get('ContentType')), 'pt': str(rel.get('PartName'))}
@@ -398,7 +400,7 @@ def main():
     # CopyPptxUtils.search_word_in_xml_folder(source_folder, "Microsoft_Excel_Worksheet")
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [i + 1 for i in range(35)]
-    slides_to_copy = [1]
+    slides_to_copy = [1, 1, 3, 1]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
 
@@ -418,5 +420,5 @@ def main():
     CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
 
 
-# main()
-CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_rep")
+main()
+# CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_rep")
