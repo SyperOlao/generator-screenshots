@@ -36,6 +36,8 @@ class CopyPptxUtils:
 
     @staticmethod
     def change_notes_slides(path_to_lib, index):
+        print("path_to_lib", path_to_lib)
+        CopyPptxUtils.change_a_t_notes_slides(path_to_lib, index)
         CopyPptxUtils.change_file_index(path_to_lib, index)
         notes_slides_rels = CopyPptxUtils.change_file_index_rels(path_to_lib, index)
         tree = etree.parse(notes_slides_rels)
@@ -49,6 +51,21 @@ class CopyPptxUtils:
                     and r_num is not None:
                 notes_rel.set('Target', f'../slides/slide{index}.xml')
         tree.write(notes_slides_rels, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
+    @staticmethod
+    def change_a_t_notes_slides(path, index):
+        print(path)
+        tree = etree.parse(path)
+        root = tree.getroot()
+        namespaces = CopyPptxUtils.get_name_spaces_by_filepath(path)
+        if 'a' not in namespaces:
+            return
+        a_t = root.find('.//a:t', namespaces=namespaces)
+        if a_t is None:
+            return
+        a_t.text = str(index)
+
+        tree.write(path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     @staticmethod
     def generate_hex_string():

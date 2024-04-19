@@ -68,6 +68,7 @@ class CopyPptx:
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slides_path)
         a_t = root.findall('.//a:t', namespaces=namespaces)
+
         for e in a_t:
             self.num_of_words += len(e.text.split())
         self.num_of_words += 1
@@ -292,7 +293,9 @@ class CopyPptx:
                     rel.set('Target', f'../notesSlides/notesSlide{index}.xml')
                 self.change_slide_id(notes_slides_path, old_index)
                 CopyPptxUtils.change_notes_slides(path_to_rel, index)
+
         tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
 
     def _change_chart_rels(self, path_to_chart, index, old_index):
         CopyPptxUtils.change_file_index(path_to_chart, index)
@@ -400,7 +403,8 @@ def main():
     # CopyPptxUtils.search_word_in_xml_folder(source_folder, "Microsoft_Excel_Worksheet")
     # slides_to_copy = random.sample(range(1, 32), 31)
     # slides_to_copy = [i + 1 for i in range(35)]
-    slides_to_copy = [1, 1, 3, 1]
+    # slides_to_copy = [1, 1, 3, 1, 2, 4, 5, 6]
+    slides_to_copy = [8, 8]
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
 
@@ -417,8 +421,9 @@ def main():
     #                       ])
 
     pptx_copy.copy_slides()
-    CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
+    # CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
+    CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_8.pptx", f"{script_location}/res_8")
 
 
 main()
-# CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_rep")
+# CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_8")
