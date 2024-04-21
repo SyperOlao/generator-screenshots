@@ -8,7 +8,7 @@ import zipfile
 import os
 from lxml import etree
 import shutil
-from copy_pptx_utils import CopyPptxUtils
+from copy_pptx_utils import CopyPptxUtils, UniqueHexGenerator
 
 script_location = Path(__file__).absolute().parent
 
@@ -272,6 +272,7 @@ class CopyPptx:
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slide_xml_path_new)
         relationship_elements = root.findall('.//Relationship', namespaces=namespaces)
         notes_slides_path = f"{self.source_folder}/ppt/notesSlides/notesSlide"
+        hex_generator = UniqueHexGenerator()
         if old_index in self.repeated_indexes:
             self.repeated_indexes[old_index] += 1
 
@@ -281,7 +282,7 @@ class CopyPptx:
             path_to_rel = target.replace('..', self.source_folder + '/ppt')
             index = self.add_target_indexes(target_type)
             if target_type == 'chart':
-                CopyPptxUtils.change_chart_id(path_to_rel)
+                CopyPptxUtils.change_chart_id(path_to_rel, hex_generator)
                 self._change_chart_rels(path_to_rel, index, old_index)
                 rel.set('Target', f'../charts/chart{index}.xml')
 
@@ -419,11 +420,12 @@ def main():
     source_folder = f"{script_location}/source_pptx_extracted"
 
     # slides_to_copy = random.sample(range(1, 32), 31)
-    # slides_to_copy = [i + 1 for i in ranger(35)]
-    # slides_to_copy = [1, 1, 3, 1, 2, 4, 5, 6]
+    slides_to_copy = [i + 1 for i in range(35)]
+    #slides_to_copy = [1, 1, 3, 1, 2, 4, 5, 6]
+    # slides_to_copy = [7, 7, 7]
 
     # slides_to_copy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 18, 21, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 32, 33, 26, 28, 12, 13, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 18, 21, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20, 18, 21, 18, 21, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20]
-    slides_to_copy = [8, 8]
+    # slides_to_copy = [8 for _ in range(35)]
 
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
@@ -444,7 +446,8 @@ def main():
     # CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
     CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_8.pptx", f"{script_location}/res_8")
 
-    # CopyPptxUtils.search_word_in_xml_folder(f"{script_location}/res_8", "B084-B28D-FEBB-903392E96E4F")
+    CopyPptxUtils.search_word_in_xml_folder(source_folder, "C55D-482A-8EFA-DF59D4C082D8")
+    CopyPptxUtils.search_word_in_xml_folder(source_folder, "DA55-472E-8B61-2FBD2B764FBA")
 
 
 main()

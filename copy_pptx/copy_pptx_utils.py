@@ -10,6 +10,23 @@ import random
 import zipfile
 
 from copy_pptx.search_dif_tools import dif_dir
+import random
+
+
+class UniqueHexGenerator:
+    def __init__(self):
+        self.length = 12
+        self.min_val = 300
+        self.max_val = 5000
+        self.generated = set()
+
+    def generate_unique_hex(self):
+        while True:
+            random_int = random.randint(0, 16**self.length - 1)
+            hex_str = hex(random_int)[2:].upper().zfill(self.length)
+            if hex_str not in self.generated:
+                self.generated.add(hex_str)
+                return str(hex_str)
 
 
 class CopyPptxUtils:
@@ -75,7 +92,13 @@ class CopyPptxUtils:
         return formatted_hex_string
 
     @staticmethod
-    def change_chart_id(path_to_chart):
+    def generate_hex(n):
+        random_int = random.randint(0, 16 ** n - 1)
+        hex_str = hex(random_int)[2:].upper()
+        return str(hex_str.zfill(n))
+
+    @staticmethod
+    def change_chart_id(path_to_chart, hex_generator):
         tree = etree.parse(path_to_chart)
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(path_to_chart)
@@ -87,16 +110,19 @@ class CopyPptxUtils:
 
                 _, _, old_uid = str(uid.get('val')).partition('-')
                 if old_uid not in new_num:
-                    new_num[old_uid] = CopyPptxUtils.generate_hex_string()
+                    print("old_uid", uid.get('val'))
+                    new_num[old_uid] = hex_generator.generate_unique_hex()
 
                 curr_id = str(uid.get('val')).split('-')[0][1::]
+
                 new_list = str(uid.get('val')).replace('{', '').replace('}', '').split('-')[1:-1]
 
-                result = '-'.join(new_list) + '-' + new_num[old_uid].split('-')[-1]
+                result = '-'.join(new_list) + '-' + new_num[old_uid]
 
-                print("result", result)
                 uid.set('val', "{" + f"{curr_id}-{result}" + "}")
-            print("new slide")
+
+            for i in new_num:
+                print(new_num[i])
             tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
         except Exception as err:
             logger.warning(err)
