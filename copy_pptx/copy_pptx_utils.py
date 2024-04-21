@@ -36,7 +36,6 @@ class CopyPptxUtils:
 
     @staticmethod
     def change_notes_slides(path_to_lib, index):
-        print("path_to_lib", path_to_lib)
         CopyPptxUtils.change_a_t_notes_slides(path_to_lib, index)
         CopyPptxUtils.change_file_index(path_to_lib, index)
         notes_slides_rels = CopyPptxUtils.change_file_index_rels(path_to_lib, index)
@@ -54,7 +53,6 @@ class CopyPptxUtils:
 
     @staticmethod
     def change_a_t_notes_slides(path, index):
-        print(path)
         tree = etree.parse(path)
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(path)
@@ -81,13 +79,24 @@ class CopyPptxUtils:
         tree = etree.parse(path_to_chart)
         root = tree.getroot()
         namespaces = CopyPptxUtils.get_name_spaces_by_filepath(path_to_chart)
+        new_num = dict()
         try:
             unique_ids = root.findall('.//c16:uniqueId', namespaces=namespaces)
-            hex_num = CopyPptxUtils.generate_hex_string()
-            for uid in unique_ids:
-                curr_id = str(uid.get('val')).split('-')[0][1::]
 
-                uid.set('val', "{" + f"{curr_id}-{hex_num}" + "}")
+            for uid in unique_ids:
+
+                _, _, old_uid = str(uid.get('val')).partition('-')
+                if old_uid not in new_num:
+                    new_num[old_uid] = CopyPptxUtils.generate_hex_string()
+
+                curr_id = str(uid.get('val')).split('-')[0][1::]
+                new_list = str(uid.get('val')).replace('{', '').replace('}', '').split('-')[1:-1]
+
+                result = '-'.join(new_list) + '-' + new_num[old_uid].split('-')[-1]
+
+                print("result", result)
+                uid.set('val', "{" + f"{curr_id}-{result}" + "}")
+            print("new slide")
             tree.write(path_to_chart, pretty_print=True, xml_declaration=True, encoding='utf-8')
         except Exception as err:
             logger.warning(err)
@@ -174,13 +183,10 @@ class CopyPptxUtils:
 
     @staticmethod
     def move_file(file_path, new_index):
-        print(file_path, new_index)
-
         temp_slides_path = file_path.rsplit('/', 1)[0] + "/temp"
         CopyPptxUtils.create_a_dir(temp_slides_path)
         new_file_number = re.sub(r'\d+', str(new_index), str(file_path.rsplit('/', 1)[1]))
         new_file_path = f"{temp_slides_path}/{new_file_number}"
-        print(new_file_path)
         shutil.copy2(file_path, new_file_path)
 
     @staticmethod

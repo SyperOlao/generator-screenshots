@@ -296,7 +296,6 @@ class CopyPptx:
 
         tree.write(slide_xml_path_new, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-
     def _change_chart_rels(self, path_to_chart, index, old_index):
         CopyPptxUtils.change_file_index(path_to_chart, index)
         chart_path_rels = CopyPptxUtils.change_file_index_rels(path_to_chart, index)
@@ -325,6 +324,24 @@ class CopyPptx:
 
         CopyPptxUtils.move_file(chart_path_to_embedding + '/' + chart_target, embedding_index)
         rel.set('Target', CopyPptxUtils.replace_number(chart_target, embedding_index))
+
+        # if old_index not in self.repeated_indexes or self.repeated_indexes[old_index] < 2:
+        #     chart_path_to_embedding = self.source_folder + '/ppt/charts'
+        #     embedding_index = str(self.add_target_indexes(chart_target_type))
+        #
+        #     CopyPptxUtils.move_file(chart_path_to_embedding + '/' + chart_target, embedding_index)
+        #
+        # chart_path_to_embedding = self.source_folder + '/ppt/charts'
+        # index = CopyPptxUtils.get_last_index(chart_path_to_embedding, pattern)
+        #
+        # new_chart_style = CopyPptxUtils.replace_number(chart_target, str(index + 1))
+        # self.styles.append(new_chart_style)
+        #
+        # old_path = chart_path_to_embedding + '/' + chart_target
+        # new_path = chart_path_to_embedding + '/temp/' + new_chart_style
+        # shutil.copy2(old_path, new_path)
+        #
+        # rel.set('Target', new_chart_style)
 
     def change_package(self, rel, chart_target_type, chart_target):
         embedding_index = str(self.add_target_indexes(chart_target_type))
@@ -400,11 +417,14 @@ def main():
     new_presentation.save(path_to_new)
     path_to_source = f"{script_location}/template.pptx"
     source_folder = f"{script_location}/source_pptx_extracted"
-    # CopyPptxUtils.search_word_in_xml_folder(source_folder, "Microsoft_Excel_Worksheet")
+
     # slides_to_copy = random.sample(range(1, 32), 31)
-    # slides_to_copy = [i + 1 for i in range(35)]
+    # slides_to_copy = [i + 1 for i in ranger(35)]
     # slides_to_copy = [1, 1, 3, 1, 2, 4, 5, 6]
+
+    # slides_to_copy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 18, 21, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 32, 33, 26, 28, 12, 13, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 18, 21, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20, 18, 21, 18, 21, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20]
     slides_to_copy = [8, 8]
+
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
 
@@ -423,6 +443,8 @@ def main():
     pptx_copy.copy_slides()
     # CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_0.pptx", f"{script_location}/res_0")
     CopyPptxUtils.save_pptx_as_folder(f"{script_location}/res_8.pptx", f"{script_location}/res_8")
+
+    # CopyPptxUtils.search_word_in_xml_folder(f"{script_location}/res_8", "B084-B28D-FEBB-903392E96E4F")
 
 
 main()
