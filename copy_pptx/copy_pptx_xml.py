@@ -55,7 +55,7 @@ class CopyPptx:
         for slide in self.slides_to_copy:
             i += 1
             self.update_doc_props(f"{slides_path}/slide{slide}.xml")
-            self.change_slide_id(slides_path + '/slide', slide)
+            # self.change_slide_id(slides_path + '/slide', slide)
             CopyPptxUtils.change_file_index(f"{slides_path}/slide{slide}.xml", i)
             self._change_rels_file(f"{slides_path}/slide{slide}.xml", i, slide)
 
@@ -282,7 +282,7 @@ class CopyPptx:
             path_to_rel = target.replace('..', self.source_folder + '/ppt')
             index = self.add_target_indexes(target_type)
             if target_type == 'chart':
-                CopyPptxUtils.change_chart_id(path_to_rel, hex_generator)
+                # CopyPptxUtils.change_chart_id(path_to_rel, hex_generator)
                 self._change_chart_rels(path_to_rel, index, old_index)
                 rel.set('Target', f'../charts/chart{index}.xml')
 
@@ -420,12 +420,13 @@ def main():
     source_folder = f"{script_location}/source_pptx_extracted"
 
     # slides_to_copy = random.sample(range(1, 32), 31)
-    slides_to_copy = [i + 1 for i in range(35)]
+    # slides_to_copy = [i + 1 for i in range(35)]
     #slides_to_copy = [1, 1, 3, 1, 2, 4, 5, 6]
-    # slides_to_copy = [7, 7, 7]
+    # slides_to_copy = [2, 2, 2]
+    # slides_to_copy = [8, 8]
 
-    # slides_to_copy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 18, 21, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 32, 33, 26, 28, 12, 13, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 18, 21, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20, 18, 21, 18, 21, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20]
-    # slides_to_copy = [8 for _ in range(35)]
+    slides_to_copy = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 18, 21, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 32, 33, 26, 28, 12, 13, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 9, 10, 18, 21, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 22, 23, 25, 24, 22, 23, 25, 24, 18, 21, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20, 18, 21, 18, 21, 22, 23, 25, 24, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 16, 17, 19, 20, 18, 21, 16, 17, 19, 20]
+    # slides_to_copy = [8 for _ in range(4)]
 
     pptx_copy = CopyPptx(path_to_source, path_to_new,
                          slides_to_copy)
@@ -451,4 +452,4 @@ def main():
 
 
 main()
-# CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/res_8")
+CopyPptxUtils.compare_dir(f"{script_location}/source_pptx_extracted", f"{script_location}/template")
