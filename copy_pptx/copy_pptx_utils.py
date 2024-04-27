@@ -1,5 +1,5 @@
 import os
-import uuid
+import string
 
 from config.config import logger
 import glob
@@ -8,30 +8,18 @@ from io import StringIO
 import xml.etree.ElementTree as ET
 from lxml import etree
 import shutil
-import random
 import zipfile
 
 from copy_pptx.search_dif_tools import dif_dir
 import random
 
 
-class UniqueHexGenerator:
-    def __init__(self):
-        self.length = 12
-        self.min_val = 300
-        self.max_val = 5000
-        self.generated = set()
-
-    def generate_unique_hex(self):
-        while True:
-            random_int = random.randint(0, 16**self.length - 1)
-            hex_str = hex(random_int)[2:].upper().zfill(self.length)
-            if hex_str not in self.generated:
-                self.generated.add(hex_str)
-                return str(hex_str)
-
-
 class CopyPptxUtils:
+    @staticmethod
+    def generate_random_string(length=6):
+        letters_and_digits = string.ascii_letters + string.digits
+        return ''.join(random.choice(letters_and_digits) for _ in range(length))
+
     @staticmethod
     def save_pptx_as_folder(path_to_pptx, folder_name):
         os.makedirs(folder_name, exist_ok=True)
@@ -255,7 +243,6 @@ class CopyPptxUtils:
         temp_folder = source_folder + "/temp"
         if not os.path.exists(temp_folder):
             pass
-            # logger.warning(f"Source folder '{source_folder}' can not be find.")
         else:
             for filename in os.listdir(temp_folder):
                 file_path = os.path.join(temp_folder, filename)
@@ -274,6 +261,23 @@ class CopyPptxUtils:
         parent = rel.getparent()
         if parent is not None:
             parent.remove(rel)
+
+    @staticmethod
+    def change_slide_id(slides_path, old_index):
+        slide_xml_path = f"{slides_path}{old_index}.xml"
+        tree = etree.parse(slide_xml_path)
+        root = tree.getroot()
+        namespaces = CopyPptxUtils.get_name_spaces_by_filepath(slide_xml_path)
+
+        if 'p14' in namespaces:
+            creation_id = root.find('.//p14:creationId', namespaces=namespaces)
+            if creation_id is not None:
+                creation_id.set('val', f'{random.sample(range(2000000000, 7000000000), 1)[0]}')
+        ex = root.find('.//p:extLst', namespaces=namespaces)
+        if ex is not None:
+            CopyPptxUtils.delete_child(ex)
+        tree.write(slide_xml_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
+
 
     @staticmethod
     def search_word_in_xml_folder(folder_path, word):
@@ -311,4 +315,4 @@ class CopyPptxUtils:
                         except Exception as e:
                             logger.warning(f"Error reading file: {e}")
                     except FileNotFoundError:
-                        print(f"Файл {file_path_dir2} не существует.\n")
+                        print(f"File {file_path_dir2} doesn't exist.\n")
