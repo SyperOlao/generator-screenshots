@@ -278,7 +278,6 @@ class CopyPptxUtils:
             CopyPptxUtils.delete_child(ex)
         tree.write(slide_xml_path, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
-
     @staticmethod
     def search_word_in_xml_folder(folder_path, word):
         for root, dirs, files in os.walk(folder_path):
