@@ -2,8 +2,17 @@
 /.venv
 /.idea
 
-.env
+*.env
 
 /screenshots
 
 **/__pycache__/
+
+/copy_pptx/presentations
+/parsing/jsons
+
+*.DS_Store
+*.pptx
+*.xlsx
+*.csv
+*.session
